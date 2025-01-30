@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    {{- include "oai-xapp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "oai-xapp.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "oai-xapp.selectorLabels" . | nindent 8 }}
+        app: oai-xapp
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+    {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{ toYaml .Values.imagePullSecrets | indent 8 }}
+    {{- end }}
+    {{ if .Values.waitForRadio }}
+      initContainers:
+        - name: init
+          image: docker.io/oaisoftwarealliance/oai-tcpdump-init:alpine-3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - until ping -c 1  {{ .Values.config.duServer }}; do echo waiting for oai-du to start; sleep 1; done
+    {{- end }}
+      containers:
+      - name: xapp
+        image: "{{ .Values.nfimage.repository }}:{{ .Values.nfimage.version }}"
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        volumeMounts:
+          - mountPath: /xapp/files/
+            name: script-volume
+          - mountPath: /tmp/flexric/
+            name: configuration
+        {{- if .Values.resources.define}}
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.nf.memory | quote }}
+            cpu: {{ .Values.resources.requests.nf.cpu | quote }}
+          limits:
+            memory: {{ .Values.resources.limits.nf.memory | quote }}
+            cpu: {{ .Values.resources.limits.nf.cpu | quote }}
+        {{- end}}
+        command: [ "/bin/bash", "-c" ]
+        args:
+          - sleep 10;
+            RIC_IP_ADDRESS=$(getent hosts $RIC_HOST | awk '{print $1}');
+            cp /xapp/files/* /xapp/;
+            cp /flexric/build/examples/xApp/python3/* /xapp/;
+            pip3 install prometheus-client;
+            sed -e "s/@RIC_IP_ADDRESS@/$RIC_IP_ADDRESS/g" /tmp/flexric/flexric.conf | tee /usr/local/etc/flexric/flexric.conf;
+            stdbuf -o0 python3 /xapp/xapp.py;
+            tail -f /dev/null;
+        env:
+          - name: TZ
+            value: {{ .Values.config.timeZone }}
+          - name: RIC_HOST
+            value: {{ .Values.config.ricServer }}
+      - name: prometheus
+        image: "{{ .Values.prometheusimage.repository }}:{{ .Values.prometheusimage.version }}"
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        volumeMounts:
+          - mountPath: /tmp/prometheus/
+            name: prometheus
+        {{- if .Values.resources.define}}
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.nf.memory | quote }}
+            cpu: {{ .Values.resources.requests.nf.cpu | quote }}
+          limits:
+            memory: {{ .Values.resources.limits.nf.memory | quote }}
+            cpu: {{ .Values.resources.limits.nf.cpu | quote }}
+        {{- end}}
+        ports:
+        - containerPort: 9090
+          name: prometheus
+          protocol: TCP
+        {{- if .Values.start.prometheus}}
+        command: [ "/bin/sh", "-c" ]
+        args:
+          - cp /tmp/prometheus/prometheus.yml /prometheus/prometheus.yml;
+            exec /bin/prometheus;
+        {{- else}}
+        command:
+          - /bin/sleep
+          - infinity
+        {{- end}}
+        env:
+          - name: TZ
+            value: {{ .Values.config.timeZone }}
+      {{- if .Values.includeTcpDumpContainer }}
+      - name: tcpdump
+        image: "{{ .Values.tcpdumpimage.repository }}:{{ .Values.tcpdumpimage.version }}"
+        imagePullPolicy: {{ .Values.tcpdumpimage.pullPolicy }}
+        {{- if .Values.resources.define}}
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.tcpdump.memory | quote }}
+            cpu: {{ .Values.resources.requests.tcpdump.cpu | quote }}
+          limits:
+            memory: {{ .Values.resources.limits.tcpdump.memory | quote }}
+            cpu: {{ .Values.resources.limits.tcpdump.cpu | quote }}
+        {{- end}}
+        securityContext:
+           capabilities:
+              add:
+               - NET_ADMIN
+               - NET_RAW
+              drop:
+               - ALL
+        {{- if .Values.start.tcpdump}}
+        command:
+          - /bin/sh
+          - -c
+          - /usr/bin/tcpdump -i any -w /tmp/pcap/{{ .Chart.Name }}_`date +%Y-%m-%d_%H_%M-%S-%Z`.pcap
+        {{- else}}
+        command:
+          - /bin/sleep
+          - infinity
+        {{- end}}
+      {{- end }}
+      volumes:
+      - configMap:
+          name: {{ .Chart.Name }}-configmap
+        name: configuration
+      - configMap:
+          name: {{ .Chart.Name }}-script
+        name: script-volume
+      - configMap:
+          name: {{ .Chart.Name }}-prometheus
+        name: prometheus
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- if .Values.nodeSelector}}
+      nodeSelector: 
+         {{- toYaml .Values.nodeSelector | nindent 12 }}
+      {{- end }}
+      {{- if .Values.nodeName}}
+      nodeName: {{ .Values.nodeName }}
+      {{- end }}

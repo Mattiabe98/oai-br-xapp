@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-prometheus
+data:
+  prometheus.yml: |
+      # my global config
+      global:
+        scrape_interval: 1s
+        evaluation_interval: 30s
+        body_size_limit: 15MB
+        sample_limit: 1500
+        target_limit: 30
+        label_limit: 30
+        label_name_length_limit: 200
+        label_value_length_limit: 200
+        query_log_file: query.log
+        scrape_failure_log_file: fail.log
+        # scrape_timeout is set to the global default (10s).
+      
+      runtime:
+        gogc: 75
+      
+      scrape_configs:
+        - job_name: ric_exporter
+      
+          honor_labels: true
+          # scrape_interval is defined by the configured global (15s).
+          # scrape_timeout is defined by the global default (10s).
+      
+          # metrics_path defaults to '/metrics'
+          # scheme defaults to 'http'.
+      
+          fallback_scrape_protocol: PrometheusText0.0.4
+      
+          scrape_failure_log_file: fail_prom.log
+      
+          static_configs:
+            - targets: ["localhost:8000"]

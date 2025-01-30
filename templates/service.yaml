@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oai-xapp
+  labels:
+    {{- include "oai-xapp.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: ric
+      port: {{ .Values.config.ricPort}}
+      targetPort: {{ .Values.config.ricPort}}
+      protocol: SCTP
+    - name: prometheus
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    {{- include "oai-xapp.selectorLabels" . | nindent 4 }}
