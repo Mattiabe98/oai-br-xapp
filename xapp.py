@@ -5,7 +5,7 @@ import csv
 import sys
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 # print("Current Directory:", cur_dir)
-sdk_path = cur_dir + "/../xapp_sdk/"
+sdk_path = cur_dir
 sys.path.append(sdk_path)
 
 import xapp_sdk as ric
