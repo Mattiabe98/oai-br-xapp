@@ -59,7 +59,7 @@ spec:
             cp /xapp/files/* /xapp/;
             cp /flexric/build/examples/xApp/python3/xapp_sdk/* /xapp/;
             pip3 install prometheus-client;
-            sed -e "s/@RIC_IP_ADDRESS@/$RIC_IP_ADDRESS/g" /tmp/flexric/flexric.conf | tee /usr/local/etc/flexric/flexric.conf;
+            sed -e "s/@RIC_IP_ADDRESS@/$RIC_IP_ADDRESS/g" /tmp/flexric/ric.conf | tee /usr/local/etc/flexric/ric.conf;
             stdbuf -o0 python3 /xapp/xapp.py;
             tail -f /dev/null;
         env:
