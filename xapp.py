@@ -87,7 +87,7 @@ class MACCallback(ric.mac_cb):
                 MAC_UL_MCS2.labels(ue_id=id).set(ue.ul_mcs2)
 
 
-            print(f"MAC Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            #print(f"MAC Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
             # with open(file_name, 'a', newline='', buffering=1024) as f:
             #     writer = csv.writer(f)
             #     writer.writerow([ind.id.nb_id.nb_id, ind.id.type, "MAC", t_diff])
@@ -113,7 +113,7 @@ class RLCCallback(ric.rlc_cb):
             # Update Prometheus metrics
             LATENCY_RLC.observe(t_diff)
 
-            print(f"RLC Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            #print(f"RLC Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
             # with open(file_name, 'a', newline='', buffering=1024) as f:
             #     writer = csv.writer(f)
             #     writer.writerow([ind.id.nb_id.nb_id, ind.id.type, "RLC", t_diff])
@@ -142,7 +142,7 @@ class PDCPCallback(ric.pdcp_cb):
             # Update Prometheus metrics
             LATENCY_PDCP.observe(t_diff)
 
-            print(f"PDCP Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            #print(f"PDCP Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
             # with open(file_name, 'a', newline='', buffering=1024) as f:
             #     writer = csv.writer(f)
             #     writer.writerow([ind.id.nb_id.nb_id, ind.id.type, "PDCP", t_diff])
@@ -170,7 +170,7 @@ class GTPCallback(ric.gtp_cb):
             # Update Prometheus metrics
             LATENCY_GTP.observe(t_diff)
 
-            print(f"GTP Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            #print(f"GTP Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
             for id, stat in enumerate(ind.gtp_stats):
                 GTP_QFI.labels(ue_id=id).set(stat.qfi)
                 GTP_TEID.labels(ue_id=id).set(stat.teidgnb)
@@ -189,7 +189,7 @@ class SLICECallback(ric.slice_cb):
         t_now = time.time_ns() / 1000.0
         t_slice = ind.tstamp / 1.0
         t_diff = t_now - t_slice
-        print(f"SLICE Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+        #print(f"SLICE Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
 
 
 def get_cust_tti(tti):
