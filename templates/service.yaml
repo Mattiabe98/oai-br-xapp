@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: oai-xapp
+  name: oai-br-xapp
   labels:
-    {{- include "oai-xapp.labels" . | nindent 4 }}
+    {{- include "oai-br-xapp.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   clusterIP: None
@@ -17,4 +17,4 @@ spec:
       targetPort: 9090
       protocol: TCP
   selector:
-    {{- include "oai-xapp.selectorLabels" . | nindent 4 }}
+    {{- include "oai-br-xapp.selectorLabels" . | nindent 4 }}
