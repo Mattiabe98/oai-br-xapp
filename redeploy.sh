@@ -2,6 +2,6 @@
 cd /root/oai-xapp/
 git pull
 helm dependency update
-helm uninstall oai-xapp
+helm uninstall oai-br-xapp
 sleep 2
-helm install oai-xapp .
+helm install oai-br-xapp .
