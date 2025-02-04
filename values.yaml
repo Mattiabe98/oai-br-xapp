@@ -25,7 +25,7 @@ imagePullSecrets:
 
 config:
   timeZone: "Europe/Paris"
-  ricServer: "oai-flexric"    # ip-address of rfsim or service name oai-gnb or oai-du
+  ricServer: "oai-br-flexric"    # ip-address of rfsim or service name oai-gnb or oai-du
   ricPort: 36422
   duServer: "oai-ran"
 #  fullImsi: "001010000000100"       # make sure all the below entries are present in the subscriber database
