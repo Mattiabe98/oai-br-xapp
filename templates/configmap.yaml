@@ -15,9 +15,10 @@ data:
       # supported name : MAC, RLC, PDCP, GTP, SLICE;
       # supported time: 1_ms, 2_ms, 5_ms, 10_ms, 100_ms, 1000_ms;
       Sub_CUST_SM_List = (
-          { name = "MAC", time = "100_ms" },
-          { name = "RLC", time = "100_ms" },
-          { name = "PDCP", time = "100_ms" }
+          { name = "MAC", time = "1000_ms" },
+          { name = "RLC", time = "1000_ms" },
+          { name = "GTP", time = "1000_ms" },          
+          { name = "PDCP", time = "1000_ms" }
       )
       
       xApp_DB = {
