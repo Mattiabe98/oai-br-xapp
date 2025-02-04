@@ -286,7 +286,7 @@ if __name__ == '__main__':
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
     
-    time.sleep(3600)
+    time.sleep(9900000)
         
     ### End
     for i in range(0, len(mac_hndlr)):
