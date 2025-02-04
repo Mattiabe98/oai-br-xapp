@@ -4,7 +4,7 @@ waitForRadio: true
 ## In case of using these charts on Openshift then please use UBI images
 ## To know more about them follow this tutorial https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed/-/tree/master/openshift
 nfimage:
-  repository: docker.io/boing7898/flexric
+  repository: docker.io/boing7898/br-flexric
   #repository: docker.io/oaisoftwarealliance/oai-flexric           # dockehub oaisoftwarealliance/oai-nr-ue
   version: latest # image tag or develop
   # pullPolicy: IfNotPresent or Never or Always
