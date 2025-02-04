@@ -1,5 +1,5 @@
 #/bin/bash
-cd /root/oai-xapp/
+cd /root/oai-br-xapp/
 git pull
 helm dependency update
 helm uninstall oai-br-xapp
