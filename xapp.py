@@ -286,24 +286,23 @@ if __name__ == '__main__':
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
     
-        time.sleep(10)
+        time.sleep(300)
         
-    while True:    
-        ### End
-        for i in range(0, len(mac_hndlr)):
-            ric.rm_report_mac_sm(mac_hndlr[i])
-    
-        for i in range(0, len(rlc_hndlr)):
-            ric.rm_report_rlc_sm(rlc_hndlr[i])
-    
-        for i in range(0, len(pdcp_hndlr)):
-            ric.rm_report_pdcp_sm(pdcp_hndlr[i])
-    
-        for i in range(0, len(gtp_hndlr)):
-            ric.rm_report_gtp_sm(gtp_hndlr[i])
-    
-        for i in range(0, len(slice_hndlr)):
-            ric.rm_report_slice_sm(slice_hndlr[i])
+    ### End
+    for i in range(0, len(mac_hndlr)):
+        ric.rm_report_mac_sm(mac_hndlr[i])
+
+    for i in range(0, len(rlc_hndlr)):
+        ric.rm_report_rlc_sm(rlc_hndlr[i])
+
+    for i in range(0, len(pdcp_hndlr)):
+        ric.rm_report_pdcp_sm(pdcp_hndlr[i])
+
+    for i in range(0, len(gtp_hndlr)):
+        ric.rm_report_gtp_sm(gtp_hndlr[i])
+
+    for i in range(0, len(slice_hndlr)):
+        ric.rm_report_slice_sm(slice_hndlr[i])
 
     # Avoid deadlock. ToDo revise architecture
     while ric.try_stop == 0:
