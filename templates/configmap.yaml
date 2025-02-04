@@ -4,10 +4,9 @@ metadata:
   name: {{ .Chart.Name }}-configmap
 #https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/ci-scripts/conf_files/gNB_SA_DU.conf
 data:
-  flexric.conf: |
-      [NEAR-RIC]
-      NEAR_RIC_IP = @RIC_IP_ADDRESS@
-      [XAPP]
-      DB_PATH = /tmp/
-      DB_NAME = xapp_db1
+  ric.conf: |
+      Name = "NearRT_RIC"
+      NearRT_RIC_IP = "0.0.0.0"
+      E2_Port = 36421
+      E42_Port = 36422
 
