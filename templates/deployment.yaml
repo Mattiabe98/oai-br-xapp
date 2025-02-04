@@ -3,19 +3,19 @@ kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
   labels:
-    {{- include "oai-xapp.labels" . | nindent 4 }}
+    {{- include "oai-br-xapp.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "oai-xapp.selectorLabels" . | nindent 6 }}
+      {{- include "oai-br-xapp.selectorLabels" . | nindent 6 }}
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        {{- include "oai-xapp.selectorLabels" . | nindent 8 }}
-        app: oai-xapp
+        {{- include "oai-br-xapp.selectorLabels" . | nindent 8 }}
+        app: oai-br-xapp
     spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
