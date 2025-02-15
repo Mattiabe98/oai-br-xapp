@@ -298,7 +298,7 @@ if __name__ == '__main__':
     while running:
         time.sleep(1)
 
-    print("Cleaning up resources...")
+    print("Cleaning up resources...", flush=True)
     ### End
     for i in range(0, len(mac_hndlr)):
         ric.rm_report_mac_sm(mac_hndlr[i])
@@ -319,4 +319,4 @@ if __name__ == '__main__':
     while ric.try_stop == 0:
         time.sleep(1)
 
-    print("Cleanup completed. Exiting.")
+    print("Cleanup completed. Exiting.", flush=True)
