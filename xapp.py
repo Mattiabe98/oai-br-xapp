@@ -315,6 +315,7 @@ if __name__ == '__main__':
     for i in range(0, len(slice_hndlr)):
         ric.rm_report_slice_sm(slice_hndlr[i])
 
+    time.sleep(2)
     # Avoid deadlock. ToDo revise architecture
     while ric.try_stop == 0:
         time.sleep(1)
