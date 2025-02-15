@@ -3,6 +3,8 @@ import os
 import pdb
 import csv
 import sys
+import signal
+
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 # print("Current Directory:", cur_dir)
 sdk_path = cur_dir
@@ -48,6 +50,13 @@ PDCP_RX_BYTES = Gauge('ric_pdcp_rx_bytes', 'PDCP Total RX PDU Bytes', ['ue_id'])
 # Create Gauges for GTP metrics
 GTP_QFI = Gauge('ric_gtp_qfi', 'GTP QoS Flow Indicator', ['ue_id'])
 GTP_TEID = Gauge('ric_gtp_teid', 'GTP gNB Tunnel Identifier', ['ue_id'])
+
+running = True
+
+def handle_sigterm(signum, frame):
+    global running
+    print("Received SIGTERM, shutting down...")
+    running = False  # Stop the main loop
 
 
 ####################
@@ -230,6 +239,7 @@ if __name__ == '__main__':
     #     writer.writerow(file_col)
 
     # Start
+    signal.signal(signal.SIGTERM, handle_sigterm)
     ric.init(sys.argv)
 
     # Start Prometheus Exporter
@@ -285,9 +295,10 @@ if __name__ == '__main__':
                 time.sleep(1)
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
-    while True:
-        time.sleep(9900000)
-        
+    while running:
+        time.sleep(1)
+
+    print("Cleaning up resources...")
     ### End
     for i in range(0, len(mac_hndlr)):
         ric.rm_report_mac_sm(mac_hndlr[i])
@@ -308,4 +319,4 @@ if __name__ == '__main__':
     while ric.try_stop == 0:
         time.sleep(1)
 
-    print("Test finished")
+    print("Cleanup completed. Exiting.")
