@@ -58,7 +58,6 @@ spec:
             RIC_IP_ADDRESS=$(getent hosts $RIC_HOST | awk '{print $1}');
             cp /xapp/files/* /xapp/;
             cp /flexric/build/examples/xApp/python3/xapp_sdk/* /xapp/;
-            pip3 install prometheus-client;
             sed -e "s/@RIC_IP_ADDRESS@/$RIC_IP_ADDRESS/g" /tmp/flexric/ric.conf | tee /usr/local/etc/flexric/ric.conf;
             exec python3 -u /xapp/xapp.py;
         env:
