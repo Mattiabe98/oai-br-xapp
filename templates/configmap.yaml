@@ -41,24 +41,24 @@ data:
             ran_type = "ngran_gNB",
             actions = (
                   { name = "DRB.PdcpSduVolumeDL" },
-                  { name = "DRB.PdcpSduVolumeUL" },
-                  { name = "DRB.RlcSduDelayDl" },
-                  { name = "DRB.UEThpDl" },
-                  { name = "DRB.UEThpUl" },
-                  { name = "RRU.PrbTotDl" },
-                  { name = "RRU.PrbTotUl" },
-                  { name = "CARR.WBCQIDist.BinX" }
+                  { name = "DRB.PdcpSduVolumeUL" }
+                  #{ name = "DRB.RlcSduDelayDl" },
+                 # { name = "DRB.UEThpDl" },
+                  #{ name = "DRB.UEThpUl" },
+                  #{ name = "RRU.PrbTotDl" },
+                  #{ name = "RRU.PrbTotUl" },
+                  #{ name = "CARR.WBCQIDist.BinX" }
                   )
           },
           { name = "KPM", time = 1000,
             format = 4,
             ran_type = "ngran_gNB_DU",
             actions = (
-                  { name = "DRB.RlcSduDelayDl" },
-                  { name = "DRB.UEThpDl" },
-                  { name = "DRB.UEThpUl" },
-                  { name = "RRU.PrbTotDl" },
-                  { name = "RRU.PrbTotUl" }
+                  { name = "DRB.RlcSduDelayDl" }
+                  #{ name = "DRB.UEThpDl" },
+                  #{ name = "DRB.UEThpUl" },
+                 # { name = "RRU.PrbTotDl" },
+                  #{ name = "RRU.PrbTotUl" }
                   )
           },
           { name = "KPM", time = 1000,
