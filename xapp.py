@@ -271,7 +271,7 @@ if __name__ == '__main__':
         #         hndlr = ric.report_rlc_sm(conn[i].id, tti, rlc_cb)
         #         rlc_hndlr.append(hndlr)
         #         time.sleep(1)
-        elif sm_name == "PDCP":
+        if sm_name == "PDCP":
             for i in range(0, len(conn)):
                 # PDCP
                 pdcp_cb = PDCPCallback()
