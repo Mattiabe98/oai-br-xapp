@@ -250,28 +250,27 @@ if __name__ == '__main__':
     conn = ric.conn_e2_nodes()
     assert(len(conn) > 0)
     for i in range(0, len(conn)):
-        print("Global E2 Node [" + str(i) + "]: PLMN MCC = " + str(conn[i].id.plmn.mcc))
-        print("Global E2 Node [" + str(i) + "]: PLMN MNC = " + str(conn[i].id.plmn.mnc))
+        print("Global E2 Node [" + str(i) + "]: PLMN MCC = " + str(conn[i].id.plmn.mcc) + " MNC = " + str(conn[i].id.plmn.mnc) + " Type: " str(conn[i].id.type))
 
     for sm_info in cust_sm:
         sm_name = sm_info.name
         sm_time = sm_info.time
         tti = get_cust_tti(sm_time)
 
-        if sm_name == "MAC":
-            for i in range(0, len(conn)):
-                # MAC
-                mac_cb = MACCallback()
-                hndlr = ric.report_mac_sm(conn[i].id, tti, mac_cb)
-                mac_hndlr.append(hndlr)
-                time.sleep(1)
-        elif sm_name == "RLC":
-            for i in range(0, len(conn)):
-                # RLC
-                rlc_cb = RLCCallback()
-                hndlr = ric.report_rlc_sm(conn[i].id, tti, rlc_cb)
-                rlc_hndlr.append(hndlr)
-                time.sleep(1)
+        # if sm_name == "MAC":
+        #     for i in range(0, len(conn)):
+        #         # MAC
+        #         mac_cb = MACCallback()
+        #         hndlr = ric.report_mac_sm(conn[i].id, tti, mac_cb)
+        #         mac_hndlr.append(hndlr)
+        #         time.sleep(1)
+        # elif sm_name == "RLC":
+        #     for i in range(0, len(conn)):
+        #         # RLC
+        #         rlc_cb = RLCCallback()
+        #         hndlr = ric.report_rlc_sm(conn[i].id, tti, rlc_cb)
+        #         rlc_hndlr.append(hndlr)
+        #         time.sleep(1)
         elif sm_name == "PDCP":
             for i in range(0, len(conn)):
                 # PDCP
@@ -279,20 +278,20 @@ if __name__ == '__main__':
                 hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
                 pdcp_hndlr.append(hndlr)
                 time.sleep(1)
-        elif sm_name == "GTP":
-            for i in range(0, len(conn)):
-                # GTP
-                gtp_cb = GTPCallback()
-                hndlr = ric.report_gtp_sm(conn[i].id, tti, gtp_cb)
-                gtp_hndlr.append(hndlr)
-                time.sleep(1)
-        elif sm_name == "SLICE":
-            for i in range(0, len(conn)):
-                # SLICE
-                slice_cb = SLICECallback()
-                hndlr = ric.report_slice_sm(conn[i].id, tti, slice_cb)
-                slice_hndlr.append(hndlr)
-                time.sleep(1)
+        # elif sm_name == "GTP":
+        #     for i in range(0, len(conn)):
+        #         # GTP
+        #         gtp_cb = GTPCallback()
+        #         hndlr = ric.report_gtp_sm(conn[i].id, tti, gtp_cb)
+        #         gtp_hndlr.append(hndlr)
+        #         time.sleep(1)
+        # elif sm_name == "SLICE":
+        #     for i in range(0, len(conn)):
+        #         # SLICE
+        #         slice_cb = SLICECallback()
+        #         hndlr = ric.report_slice_sm(conn[i].id, tti, slice_cb)
+        #         slice_hndlr.append(hndlr)
+        #         time.sleep(1)
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
     while running:
