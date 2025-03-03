@@ -259,6 +259,7 @@ if __name__ == '__main__':
     for sm_info in cust_sm:
         sm_name = sm_info.name
         sm_time = sm_info.time
+        print("Querying stats for: " + str(sm_name))
         tti = get_cust_tti(sm_time)
 
         if sm_name == "MAC":
