@@ -252,6 +252,10 @@ if __name__ == '__main__':
     for i in range(0, len(conn)):
         print("Global E2 Node [" + str(i) + "]: PLMN MCC = " + str(conn[i].id.plmn.mcc) + " MNC = " + str(conn[i].id.plmn.mnc) + " Type: " + str(conn[i].id.type))
 
+        try:
+            print("CU-DU ID: " + str(conn[i].id.cu_du_id))
+        except:
+            print("No CU-DU ID!")
     for sm_info in cust_sm:
         sm_name = sm_info.name
         sm_time = sm_info.time
