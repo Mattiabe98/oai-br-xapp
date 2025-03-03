@@ -250,7 +250,7 @@ if __name__ == '__main__':
     conn = ric.conn_e2_nodes()
     assert(len(conn) > 0)
     for i in range(0, len(conn)):
-        print("Global E2 Node [" + str(i) + "]: PLMN MCC = " + str(conn[i].id.plmn.mcc) + " MNC = " + str(conn[i].id.plmn.mnc) + " Type: " str(conn[i].id.type))
+        print("Global E2 Node [" + str(i) + "]: PLMN MCC = " + str(conn[i].id.plmn.mcc) + " MNC = " + str(conn[i].id.plmn.mnc) + " Type: " + str(conn[i].id.type))
 
     for sm_info in cust_sm:
         sm_name = sm_info.name
