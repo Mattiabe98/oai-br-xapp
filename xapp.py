@@ -51,6 +51,8 @@ PDCP_RX_BYTES = Gauge('ric_pdcp_rx_bytes', 'PDCP Total RX PDU Bytes', ['e2node',
 KPM_PRB_DL = Gauge('ric_kpm_prb_dl', 'KPM PRB DL', ['e2node', 'ue_id'])
 KPM_PRB_UL = Gauge('ric_kpm_prb_ul', 'KPM PRB UL', ['e2node', 'ue_id'])
 
+GTP_QFI = Gauge('ric_gtp_qfi', 'GTP QFI', ['e2node', 'ue_id'])
+GTP_TEID = Gauge('ric_gtp_teid', 'GTP TEID', ['e2node', 'ue_id'])
 
 def gen_id_key(id):
     plmn = "PLMN_" + str(id.plmn.mcc) + str(id.plmn.mnc)
