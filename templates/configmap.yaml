@@ -21,42 +21,6 @@ data:
           { name = "SLICE", time = "1000_ms" },
           { name = "PDCP", time = "1000_ms" }
       )
-      Sub_ORAN_SM_List = (
-          { name = "KPM", time = 1000,
-            format = 4,
-            ran_type = "ngran_gNB",
-            actions = (
-                  { name = "DRB.PdcpSduVolumeDL" },
-                  { name = "DRB.PdcpSduVolumeUL" },
-                  { name = "DRB.RlcSduDelayDl" },
-                  { name = "DRB.UEThpDl" },
-                  { name = "DRB.UEThpUl" },
-                  { name = "RRU.PrbTotDl" },
-                  { name = "RRU.PrbTotUl" },
-                  { name = "CARR.WBCQIDist.BinX" }
-                  )
-          },
-          { name = "KPM", time = 1000,
-            format = 4,
-            ran_type = "ngran_gNB_DU",
-            actions = (
-                  { name = "DRB.RlcSduDelayDl" },
-                  { name = "DRB.UEThpDl" },
-                  { name = "DRB.UEThpUl" },
-                  { name = "RRU.PrbTotDl" },
-                  { name = "RRU.PrbTotUl" }
-                  )
-          },
-          { name = "KPM", time = 1000,
-            format = 4,
-            ran_type = "ngran_gNB_CU",
-            actions = (
-                  { name = "DRB.PdcpSduVolumeDL" },
-                  { name = "DRB.PdcpSduVolumeUL" }
-                  )
-          }
-      )
-
       xApp_DB = {
           enable = "OFF"
           ip = "127.0.0.1"
