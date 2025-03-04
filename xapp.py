@@ -265,6 +265,7 @@ if __name__ == '__main__':
         if sm_name == "MAC":
             for i in range(0, len(conn)):
                 if conn[i].id.type == 7:
+                    print("Subscribing to MAC..")
                     # MAC
                     mac_cb = MACCallback()
                     hndlr = ric.report_mac_sm(conn[i].id, tti, mac_cb)
@@ -273,6 +274,7 @@ if __name__ == '__main__':
         elif sm_name == "RLC":
             for i in range(0, len(conn)):
                 if conn[i].id.type == 7:
+                    print("Subscribing to RLC..")
                     # RLC
                     rlc_cb = RLCCallback()
                     hndlr = ric.report_rlc_sm(conn[i].id, tti, rlc_cb)
@@ -280,14 +282,16 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "PDCP":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 9:
+                if conn[i].id.type == 11:
+                    print("Subscribing to PDCP..")
                     pdcp_cb = PDCPCallback()
                     hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
                     pdcp_hndlr.append(hndlr)
                     time.sleep(1)
         elif sm_name == "GTP":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 10:
+                if conn[i].id.type == 11:
+                    print("Subscribing to GTP..")
                     # GTP
                     gtp_cb = GTPCallback()
                     hndlr = ric.report_gtp_sm(conn[i].id, tti, gtp_cb)
@@ -295,8 +299,9 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "SLICE":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 10:
+                if conn[i].id.type == 11:
                     # SLICE
+                    print("Subscribing to SLICE..")
                     slice_cb = SLICECallback()
                     hndlr = ric.report_slice_sm(conn[i].id, tti, slice_cb)
                     slice_hndlr.append(hndlr)
