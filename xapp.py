@@ -222,18 +222,11 @@ class KPMCallback(ric.kpm_cb):
         ric.kpm_cb.__init__(self)
     # Create an override C++ method
     def handle(self, ind):
-
-        e2node_key = gen_id_key(ind.id)
-
         if ind.hdr:
             t_now = time.time_ns() / 1000.0
             t_kpm = ind.hdr.kpm_ric_ind_hdr_format_1.collectStartTime / 1.0
             t_diff = t_now - t_kpm
-
-            # Update Prometheus metrics
-            LATENCY_KPM.observe(t_diff)
-
-            #print(f"KPM Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            print(f"KPM Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
             # if ind.hdr.kpm_ric_ind_hdr_format_1.fileformat_version:
             #     print(f"fileformat_version {ind.hdr.kpm_ric_ind_hdr_format_1.fileformat_version}")
             # if ind.hdr.kpm_ric_ind_hdr_format_1.sender_name:
@@ -244,9 +237,9 @@ class KPMCallback(ric.kpm_cb):
             #     print(f"vendor_name {ind.hdr.kpm_ric_ind_hdr_format_1.vendor_name}")
         if ind.msg.type == ric.FORMAT_1_INDICATION_MESSAGE:
             ind_frm1 = ind.msg.frm_1
-            # print(f"ind_frm1.meas_data_lst_len {ind_frm1.meas_data_lst_len}")
+            print(f"ind_frm1.meas_data_lst_len {ind_frm1.meas_data_lst_len}")
             for index, meas_data in enumerate(ind_frm1.meas_data_lst):
-                # print(f"meas data idx {index}")
+                print(f"meas data idx {index}")
                 if meas_data.incomplete_flag == ric.TRUE_ENUM_VALUE:
                     print(f"<<< Measurement Record not reliable >>> ")
                 if meas_data.meas_record_len == ind_frm1.meas_info_lst_len:
@@ -271,41 +264,32 @@ class KPMCallback(ric.kpm_cb):
                             print_name_id = meas_info.meas_type.id
                         else:
                             print(f"unknown meas info type")
-
-                        # Export some KPM metrics to Prometheus (Adapt based on your needs)
-                        if print_name_id == "RRU.PrbTotDl":  # Example metric
-                            KPM_PRB_DL.labels(e2node=e2node_key, ue_id="N/A").set(print_value)
-                        if print_name_id == "RRU.PrbTotUl":  # Example metric
-                            KPM_PRB_UL.labels(e2node=e2node_key, ue_id="N/A").set(print_value)
-                        # print(f"Measurement name/id:value {print_name_id}:{print_value}")
+                        print(f"Measurement name/id:value {print_name_id}:{print_value}")
                 else:
                     print(f"meas_data.meas_record_len {meas_data.meas_record_len} != ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}, cannot map value to name")
 
-            #print(f"ind_frm1.gran_period_ms {ind_frm1.gran_period_ms}")
+            print(f"ind_frm1.gran_period_ms {ind_frm1.gran_period_ms}")
         elif ind.msg.type == ric.FORMAT_3_INDICATION_MESSAGE:
             # print(f"ind.msg.type {ind.msg.type}")
             # print(f"ind.msg.frm_3.ue_meas_report_lst_len {ind.msg.frm_3.ue_meas_report_lst_len}")
             for ue_meas in ind.msg.frm_3.meas_report_per_ue: # swig_meas_report_per_ue_t
                 # swig_ue_id_e2sm_t
-                #print(f"ue_meas.type {ue_meas.ue_meas_report_lst.type}")
+                print(f"ue_meas.type {ue_meas.ue_meas_report_lst.type}")
                 ue = ue_meas.ue_meas_report_lst
                 if ue.type == ric.GNB_UE_ID_E2SM:
-                    #print(f"ue.gnb.amf_ue_ngap_id {ue.gnb.amf_ue_ngap_id},"
-                    #      f"ue.gnb.guami.plmn_id.mcc {ue.gnb.guami.plmn_id.mcc},"
-                    #      f"ue.gnb.guami.plmn_id.mnc {ue.gnb.guami.plmn_id.mnc},"
-                    #      f"ue.gnb.guami.plmn_id.mnc_digit_len {ue.gnb.guami.plmn_id.mnc_digit_len}")
-                    amf_ue_ngap_id = ue.gnb.amf_ue_ngap_id
+                    print(f"ue.gnb.amf_ue_ngap_id {ue.gnb.amf_ue_ngap_id},"
+                          f"ue.gnb.guami.plmn_id.mcc {ue.gnb.guami.plmn_id.mcc},"
+                          f"ue.gnb.guami.plmn_id.mnc {ue.gnb.guami.plmn_id.mnc},"
+                          f"ue.gnb.guami.plmn_id.mnc_digit_len {ue.gnb.guami.plmn_id.mnc_digit_len}")
                 elif ue.type == ric.GNB_DU_UE_ID_E2SM:
-                    #print(f"ue.gnb_du.gnb_cu_ue_f1ap {ue.gnb_du.gnb_cu_ue_f1ap}")
-                    amf_ue_ngap_id = ue.gnb_du.gnb_cu_ue_f1ap
+                    print(f"ue.gnb_du.gnb_cu_ue_f1ap {ue.gnb_du.gnb_cu_ue_f1ap}")
                 elif ue.type == ric.GNB_CU_UP_UE_ID_E2SM:
-                    #print(f"ue.gnb_cu_up.gnb_cu_cp_ue_e1ap {ue.gnb_cu_up.gnb_cu_cp_ue_e1ap}")
-                    amf_ue_ngap_id = ue.gnb_cu_up.gnb_cu_cp_ue_e1ap
+                    print(f"ue.gnb_cu_up.gnb_cu_cp_ue_e1ap {ue.gnb_cu_up.gnb_cu_cp_ue_e1ap}")
                 else:
                     print("python3: not support ue_id_e2sm type")
                 # swig_kpm_ind_msg_format_1_t
                 ind_frm1 = ue_meas.ind_msg_format_1
-                #print(f"ind_frm1.meas_data_lst_len {ind_frm1.meas_data_lst_len}")
+                print(f"ind_frm1.meas_data_lst_len {ind_frm1.meas_data_lst_len}")
                 for meas_data in ind_frm1.meas_data_lst:
                     # print(f"meas_data.meas_record_len {meas_data.meas_record_len}")
                     # for meas_record in meas_data.meas_record_lst:
@@ -343,13 +327,7 @@ class KPMCallback(ric.kpm_cb):
                                 print_name_id = meas_info.meas_type.id
                             else:
                                 print(f"unknown meas info type")
-
-                            # Export some KPM metrics to Prometheus (Adapt based on your needs)
-                            if print_name_id == "DRB.UEThpDl":  # Example metric
-                                KPM_PRB_DL.labels(e2node=e2node_key, ue_id=amf_ue_ngap_id).set(print_value)
-                            if print_name_id == "DRB.UEThpUl":  # Example metric
-                                KPM_PRB_UL.labels(e2node=e2node_key, ue_id=amf_ue_ngap_id).set(print_value)
-                            #print(f"Measurement name/id:value {print_name_id}:{print_value}")
+                            print(f"Measurement name/id:value {print_name_id}:{print_value}")
                     else:
                         print(f"meas_data.meas_record_len {meas_data.meas_record_len} != ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}, cannot map value to name")
 
@@ -364,7 +342,7 @@ class KPMCallback(ric.kpm_cb):
                 #     else:
                 #         print(f"unknown meas info type")
 
-                #print(f"ind_frm1.gran_period_ms {ind_frm1.gran_period_ms}")
+                print(f"ind_frm1.gran_period_ms {ind_frm1.gran_period_ms}")
         else:
             print(f"not implement KPM indication format {ind.msg.type}")
 
@@ -491,6 +469,7 @@ def send_subscription_req(nodes, cust_sm, oran_sm):
         act_len = sm_info.act_len
         act = []
         for a in sm_info.actions:
+            print(a)
             act.append(a.name)
         if nodes.id.type == ric.e2ap_ngran_eNB:
             continue
