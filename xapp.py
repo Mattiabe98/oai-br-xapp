@@ -260,11 +260,13 @@ if __name__ == '__main__':
         sm_name = sm_info.name
         sm_time = sm_info.time
         print("Querying stats for: " + str(sm_name))
+        ran_type = sm_info.ran_type
+        print("With RAN type: " + str(ran_type)
         tti = get_cust_tti(sm_time)
 
         if sm_name == "MAC":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 7:
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
                     print("Subscribing to MAC..")
                     # MAC
                     mac_cb = MACCallback()
@@ -273,7 +275,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "RLC":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 7:
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
                     print("Subscribing to RLC..")
                     # RLC
                     rlc_cb = RLCCallback()
@@ -282,7 +284,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "PDCP":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 7:
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
                     print("Subscribing to PDCP..")
                     pdcp_cb = PDCPCallback()
                     hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
@@ -290,7 +292,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "GTP":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 7:
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
                     print("Subscribing to GTP..")
                     # GTP
                     gtp_cb = GTPCallback()
@@ -299,7 +301,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "SLICE":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 11:
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
                     # SLICE
                     print("Subscribing to SLICE..")
                     slice_cb = SLICECallback()
