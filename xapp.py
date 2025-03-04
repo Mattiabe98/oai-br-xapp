@@ -472,7 +472,7 @@ def send_subscription_req(nodes, cust_sm, oran_sm):
         elif sm_name == "GTP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_gNB_CUUP):
             print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
             send_gtp_sub_req(nodes.id, tti)        
-        elif sm_name == "GTP" or sm_name == "MAC" or sm_name == "PDCP" or sm_name == "RLC"
+        elif sm_name == "GTP" or sm_name == "MAC" or sm_name == "PDCP" or sm_name == "RLC":
             pass
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
