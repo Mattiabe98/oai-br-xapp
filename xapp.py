@@ -379,6 +379,7 @@ mac_cb = 0
 rlc_cb = 0
 pdcp_cb = 0
 kpm_cb = 0
+gtp_cb = 0
 def send_mac_sub_req(id, tti):
     global mac_cb
     global mac_hndlr
@@ -404,7 +405,7 @@ def send_gtp_sub_req(id, tti):
     global gtp_cb
     global gtp_hndlr
     gtp_cb = GTPCallback()
-    hndlr = ric.report_gtp_sm(id, tti, pdcp_cb)
+    hndlr = ric.report_gtp_sm(id, tti, gtp_cb)
     key = gen_id_key(id)
     gtp_hndlr.setdefault(key, []).append(hndlr)
 def send_kpm_sub_req(id, tti, action):
@@ -479,6 +480,8 @@ def send_subscription_req(nodes, cust_sm, oran_sm):
         tti = get_oran_tti(sm_time)
         sm_format = sm_info.format
         ran_type = sm_info.ran_type
+        print("SM: " + str(sm_name) + " RAN Type: " + str(ran_type))
+        print(str(nodes.id.type) + " " + str(ric.get_e2ap_ngran_name(nodes.id.type)))
         act_len = sm_info.act_len
         act = []
         for a in sm_info.actions:
