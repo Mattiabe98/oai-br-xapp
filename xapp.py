@@ -282,7 +282,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "PDCP":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 11:
+                if conn[i].id.type == 7:
                     print("Subscribing to PDCP..")
                     pdcp_cb = PDCPCallback()
                     hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
