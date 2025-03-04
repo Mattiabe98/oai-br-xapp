@@ -38,7 +38,7 @@ data:
           },
           { name = "KPM", time = 1000,
             format = 4,
-            ran_type = "ngran_gNB_DU",
+            ran_type = "ngran_gNB_DUDU",
             actions = (
                   { name = "DRB.RlcSduDelayDl" },
                   { name = "DRB.UEThpDl" },
