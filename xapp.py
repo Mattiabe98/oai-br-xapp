@@ -261,7 +261,7 @@ if __name__ == '__main__':
         sm_time = sm_info.time
         print("Querying stats for: " + str(sm_name))
         ran_type = sm_info.ran_type
-        print("With RAN type: " + str(ran_type)
+        print("With RAN type: " + str(ran_type))
         tti = get_cust_tti(sm_time)
 
         if sm_name == "MAC":
