@@ -222,7 +222,7 @@ class KPMCallback(ric.kpm_cb):
         ric.kpm_cb.__init__(self)
     # Create an override C++ method
     def handle(self, ind):
-        print(dir(ind)
+        print(dir(ind))
         if ind.msg:
             print(ind.msg)
         if ind.msg.type:
