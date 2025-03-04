@@ -266,7 +266,7 @@ if __name__ == '__main__':
 
         if sm_name == "MAC":
             for i in range(0, len(conn)):
-                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type):
                     print("Subscribing to MAC..")
                     # MAC
                     mac_cb = MACCallback()
@@ -275,7 +275,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "RLC":
             for i in range(0, len(conn)):
-                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type):
                     print("Subscribing to RLC..")
                     # RLC
                     rlc_cb = RLCCallback()
@@ -284,7 +284,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "PDCP":
             for i in range(0, len(conn)):
-                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type):
                     print("Subscribing to PDCP..")
                     pdcp_cb = PDCPCallback()
                     hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
@@ -292,7 +292,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "GTP":
             for i in range(0, len(conn)):
-                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type):
                     print("Subscribing to GTP..")
                     # GTP
                     gtp_cb = GTPCallback()
@@ -301,7 +301,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "SLICE":
             for i in range(0, len(conn)):
-                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type)
+                if ran_type == ric.get_e2ap_ngran_name(conn[i].id.type):
                     # SLICE
                     print("Subscribing to SLICE..")
                     slice_cb = SLICECallback()
