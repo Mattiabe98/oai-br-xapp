@@ -262,46 +262,48 @@ if __name__ == '__main__':
         print("Querying stats for: " + str(sm_name))
         tti = get_cust_tti(sm_time)
 
-        # if sm_name == "MAC":
-        #     for i in range(0, len(conn)):
-        #         # MAC
-        #         mac_cb = MACCallback()
-        #         hndlr = ric.report_mac_sm(conn[i].id, tti, mac_cb)
-        #         mac_hndlr.append(hndlr)
-        #         time.sleep(1)
-        # elif sm_name == "RLC":
-        #     for i in range(0, len(conn)):
-        #         # RLC
-        #         rlc_cb = RLCCallback()
-        #         hndlr = ric.report_rlc_sm(conn[i].id, tti, rlc_cb)
-        #         rlc_hndlr.append(hndlr)
-        #         time.sleep(1)
-        # elif sm_name == "PDCP":
-        #     for i in range(0, len(conn)):
-        #         # PDCP
-        #         pdcp_cb = PDCPCallback()
-        #         hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
-        #         pdcp_hndlr.append(hndlr)
-        #         time.sleep(1)
-        # elif sm_name == "GTP":
-        #     for i in range(0, len(conn)):
-        #         # GTP
-        #         gtp_cb = GTPCallback()
-        #         hndlr = ric.report_gtp_sm(conn[i].id, tti, gtp_cb)
-        #         gtp_hndlr.append(hndlr)
-        #         time.sleep(1)
-        # elif sm_name == "SLICE":
-        #     for i in range(0, len(conn)):
-        #         # SLICE
-        #         slice_cb = SLICECallback()
-        #         hndlr = ric.report_slice_sm(conn[i].id, tti, slice_cb)
-        #         slice_hndlr.append(hndlr)
-        #         time.sleep(1)
-        # else:
-        #     print(f"not yet implemented function to send subscription for {sm_name}")
-    while running:
-        time.sleep(1)
-
+        if sm_name == "MAC":
+            for i in range(0, len(conn)):
+                if conn[i].id.type == 7:
+                    # MAC
+                    mac_cb = MACCallback()
+                    hndlr = ric.report_mac_sm(conn[i].id, tti, mac_cb)
+                    mac_hndlr.append(hndlr)
+                    time.sleep(1)
+        elif sm_name == "RLC":
+            for i in range(0, len(conn)):
+                if conn[i].id.type == 7:
+                    # RLC
+                    rlc_cb = RLCCallback()
+                    hndlr = ric.report_rlc_sm(conn[i].id, tti, rlc_cb)
+                    rlc_hndlr.append(hndlr)
+                    time.sleep(1)
+        elif sm_name == "PDCP":
+            for i in range(0, len(conn)):
+                if conn[i].id.type == 9:
+                    pdcp_cb = PDCPCallback()
+                    hndlr = ric.report_pdcp_sm(conn[i].id, tti, pdcp_cb)
+                    pdcp_hndlr.append(hndlr)
+                    time.sleep(1)
+        elif sm_name == "GTP":
+            for i in range(0, len(conn)):
+                if conn[i].id.type == 10:
+                    # GTP
+                    gtp_cb = GTPCallback()
+                    hndlr = ric.report_gtp_sm(conn[i].id, tti, gtp_cb)
+                    gtp_hndlr.append(hndlr)
+                    time.sleep(1)
+        elif sm_name == "SLICE":
+            for i in range(0, len(conn)):
+                if conn[i].id.type == 10:
+                    # SLICE
+                    slice_cb = SLICECallback()
+                    hndlr = ric.report_slice_sm(conn[i].id, tti, slice_cb)
+                    slice_hndlr.append(hndlr)
+                    time.sleep(1)
+        else:
+            print(f"not yet implemented function to send subscription for {sm_name}")
+    time.sleep(2)
     print("Cleaning up resources...", flush=True)
     ### End
     for i in range(0, len(mac_hndlr)):
@@ -318,8 +320,8 @@ if __name__ == '__main__':
 
     for i in range(0, len(slice_hndlr)):
         ric.rm_report_slice_sm(slice_hndlr[i])
-
-    time.sleep(2)
+    print("Redeploy now")
+    time.sleep(200)
     # Avoid deadlock. ToDo revise architecture
     while ric.try_stop == 0:
         time.sleep(1)
