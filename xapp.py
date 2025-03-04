@@ -469,7 +469,6 @@ def send_subscription_req(nodes, cust_sm, oran_sm):
         act_len = sm_info.act_len
         act = []
         for a in sm_info.actions:
-            print(a)
             act.append(a.name)
         if nodes.id.type == ric.e2ap_ngran_eNB:
             continue
