@@ -17,7 +17,8 @@ data:
       Sub_CUST_SM_List = (
           { name = "MAC", time = "1000_ms" },
           { name = "RLC", time = "1000_ms" },
-          { name = "GTP", time = "1000_ms" },          
+          { name = "GTP", time = "1000_ms" },
+          { name = "SLICE", time = "1000_ms" },
           { name = "PDCP", time = "1000_ms" }
       )
       xApp_DB = {
