@@ -290,7 +290,7 @@ if __name__ == '__main__':
                     time.sleep(1)
         elif sm_name == "GTP":
             for i in range(0, len(conn)):
-                if conn[i].id.type == 9:
+                if conn[i].id.type == 7:
                     print("Subscribing to GTP..")
                     # GTP
                     gtp_cb = GTPCallback()
