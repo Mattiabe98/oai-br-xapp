@@ -38,13 +38,13 @@ data:
           },
           { name = "KPM", time = 1000,
             format = 4,
-            ran_type = "ngran_gNB_DUDU",
+            ran_type = "ngran_gNB_DU",
             actions = (
-                  { name = "DRB.RlcSduDelayDl" },
-                  { name = "DRB.UEThpDl" },
-                  { name = "DRB.UEThpUl" },
-                  { name = "RRU.PrbTotDl" },
-                  { name = "RRU.PrbTotUl" }
+                  #{ name = "DRB.RlcSduDelayDl" }
+                  { name = "DRB.UEThpDl" }
+                  #{ name = "DRB.UEThpUl" },
+                  #{ name = "RRU.PrbTotDl" },
+                  #{ name = "RRU.PrbTotUl" }
                   )
           },
           { name = "KPM", time = 1000,
