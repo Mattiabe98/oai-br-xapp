@@ -59,6 +59,7 @@ spec:
             cp /xapp/files/* /xapp/;
             cp /flexric/build/examples/xApp/python3/xapp_sdk/* /xapp/;
             sed -e "s/@RIC_IP_ADDRESS@/$RIC_IP_ADDRESS/g" /tmp/flexric/ric.conf | tee /usr/local/etc/flexric/ric.conf;
+            pip3 install tabulate;
             exec python3 -u /xapp/xapp.py;
         env:
           - name: TZ
