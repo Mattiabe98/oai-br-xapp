@@ -21,7 +21,7 @@ LATENCY_MAC = Summary('ric_mac_latency_us', 'Latency of MAC indications in micro
 LATENCY_RLC = Summary('ric_rlc_latency_us', 'Latency of RLC indications in microseconds')
 LATENCY_PDCP = Summary('ric_pdcp_latency_us', 'Latency of PDCP indications in microseconds')
 LATENCY_KPM = Summary('ric_kpm_latency_us', 'Latency of KPM indications in microseconds')
-
+LATENCY_GTP = Summary('ric_gtp_latency_us', 'Latency of GTP indications in microseconds')
 
 # Create Gauges for MAC metrics
 MAC_DL_BER = Gauge('ric_mac_dl_ber', 'MAC DL BER', ['e2node', 'ue_id'])
@@ -207,9 +207,11 @@ class GTPCallback(ric.gtp_cb):
 
             #print(f"GTP Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
             for id, stat in enumerate(ind.gtp_stats):
-                GTP_QFI.labels(ue_id=id).set(stat.qfi)
-                GTP_TEID.labels(ue_id=id).set(stat.teidgnb)
-
+                print(stat.qfi)
+                GTP_QFI.labels(e2node=e2node_key, ue_id=id).set(stat.qfi)
+                GTP_TEIDGNB.labels(e2node=e2node_key, ue_id=id).set(stat.teidgnb)
+                GTP_TEIDUPF.labels(e2node=e2node_key, ue_id=id).set(stat.teidupf)
+                GTP_RNTI.labels(e2node=e2node_key, ue_id=id).set(stat.rnti)
 ####################
 #### KPM INDICATION CALLBACK
 ####################
@@ -470,6 +472,8 @@ def send_subscription_req(nodes, cust_sm, oran_sm):
         elif sm_name == "GTP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_gNB_CUUP):
             print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
             send_gtp_sub_req(nodes.id, tti)        
+        elif sm_name == "GTP" or sm_name == "MAC" or sm_name == "PDCP" or sm_name == "RLC"
+            pass
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
 
