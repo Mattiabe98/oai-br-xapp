@@ -297,8 +297,8 @@ if __name__ == '__main__':
         #         hndlr = ric.report_slice_sm(conn[i].id, tti, slice_cb)
         #         slice_hndlr.append(hndlr)
         #         time.sleep(1)
-        else:
-            print(f"not yet implemented function to send subscription for {sm_name}")
+        # else:
+        #     print(f"not yet implemented function to send subscription for {sm_name}")
     while running:
         time.sleep(1)
 
