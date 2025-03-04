@@ -222,11 +222,8 @@ class KPMCallback(ric.kpm_cb):
         ric.kpm_cb.__init__(self)
     # Create an override C++ method
     def handle(self, ind):
-        print(dir(ind))
-        if ind.msg:
-            print(ind.msg)
-        if ind.msg.type:
-            print(ind.msg.type)
+        print("Hello world")
+        print(ind.msg.type)
         if ind.hdr:
             t_now = time.time_ns() / 1000.0
             t_kpm = ind.hdr.kpm_ric_ind_hdr_format_1.collectStartTime / 1.0
