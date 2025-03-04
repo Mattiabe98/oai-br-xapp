@@ -73,6 +73,9 @@ def sig_handler(signum, frame):
         if key in pdcp_hndlr:
             for i in range(0, len(pdcp_hndlr[key])):
                 ric.rm_report_pdcp_sm(pdcp_hndlr[key][i])
+        if key in gtp_hndlr:
+            for i in range(0, len(gtp_hndlr[key])):
+                ric.rm_report_gtp_sm(gtp_hndlr[key][i])                
         if key in kpm_hndlr:
             for i in range(0, len(kpm_hndlr[key])):
                 ric.rm_report_kpm_sm(kpm_hndlr[key][i])
@@ -179,6 +182,31 @@ class PDCPCallback(ric.pdcp_cb):
                 PDCP_TX_BYTES.labels(e2node=e2node_key, ue_id=id).set(rb.txpdu_bytes)
                 PDCP_RX_BYTES.labels(e2node=e2node_key, ue_id=id).set(rb.rxpdu_bytes)
 
+####################
+#### GTP INDICATION CALLBACK
+####################
+
+# Create a callback for GTP which derived it from C++ class gtp_cb
+class GTPCallback(ric.gtp_cb):
+    def __init__(self):
+        # Inherit C++ gtp_cb class
+        ric.gtp_cb.__init__(self)
+    # Create an override C++ method
+    def handle(self, ind):
+        e2node_key = gen_id_key(ind.id)
+        
+        if len(ind.gtp_stats) > 0:
+            t_now = time.time_ns() / 1000.0
+            t_gtp = ind.tstamp / 1.0
+            t_diff = t_now - t_gtp
+
+            # Update Prometheus metrics
+            LATENCY_GTP.observe(t_diff)
+
+            #print(f"GTP Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            for id, stat in enumerate(ind.gtp_stats):
+                GTP_QFI.labels(ue_id=id).set(stat.qfi)
+                GTP_TEID.labels(ue_id=id).set(stat.teidgnb)
 
 ####################
 #### KPM INDICATION CALLBACK
@@ -372,6 +400,13 @@ def send_pdcp_sub_req(id, tti):
     hndlr = ric.report_pdcp_sm(id, tti, pdcp_cb)
     key = gen_id_key(id)
     pdcp_hndlr.setdefault(key, []).append(hndlr)
+def send_gtp_sub_req(id, tti):
+    global gtp_cb
+    global gtp_hndlr
+    gtp_cb = GTPCallback()
+    hndlr = ric.report_gtp_sm(id, tti, pdcp_cb)
+    key = gen_id_key(id)
+    gtp_hndlr.setdefault(key, []).append(hndlr)
 def send_kpm_sub_req(id, tti, action):
     global kpm_cb
     global kpm_hndlr
@@ -426,9 +461,12 @@ def send_subscription_req(nodes, cust_sm, oran_sm):
         elif sm_name == "RLC" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_DU or nodes.id.type == ric.e2ap_ngran_eNB):
             print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
             send_rlc_sub_req(nodes.id, tti)
-        elif sm_name == "PDCP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_eNB):
+        elif sm_name == "PDCP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_gNB_CUUP):
             print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
             send_pdcp_sub_req(nodes.id, tti)
+        elif sm_name == "GTP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_gNB_CUUP):
+            print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
+            send_gtp_sub_req(nodes.id, tti)        
         else:
             print(f"not yet implemented function to send subscription for {sm_name}")
 
@@ -487,6 +525,10 @@ def get_ngran_name(ran_type):
         return "ngran_gNB_CU"
     elif ran_type == 7:
         return "ngran_gNB_DU"
+    elif ran_type == 9:
+        return "ngran_gNB_CUCP"
+    elif ran_type == 10:
+        return "ngran_gNB_CUUP"
     else:
         return "Unknown"
 
@@ -561,6 +603,9 @@ def clean_hndlr(id):
     global pdcp_hndlr
     if key in pdcp_hndlr:
         del pdcp_hndlr[key]
+    global gtp_hndlr
+    if key in gtp_hndlr:
+        del gtp_hndlr[key]        
     global kpm_hndlr
     if key in kpm_hndlr:
         del kpm_hndlr[key]
@@ -602,6 +647,7 @@ conn = ric.conn_e2_nodes()
 mac_hndlr = {}
 rlc_hndlr = {}
 pdcp_hndlr = {}
+gtp_hndlr = {}
 kpm_hndlr = {}
 for i in range(0, len(conn)):
     send_subscription_req(conn[i], cust_sm, oran_sm)
