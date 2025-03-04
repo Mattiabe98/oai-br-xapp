@@ -37,7 +37,7 @@ data:
                   )
           },
           { name = "KPM", time = 1000,
-            format = 4,
+            format = 1,
             ran_type = "ngran_gNB_DU",
             actions = (
                   #{ name = "DRB.RlcSduDelayDl" }
