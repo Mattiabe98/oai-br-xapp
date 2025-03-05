@@ -21,16 +21,16 @@ data:
           { name = "SLICE", time = "10_ms" },
           { name = "PDCP", time = "10_ms" }
       )
-      # Sub_ORAN_SM_List = (
-      #     { name = "KPM", time = 10,
-      #       format = 1,
-      #       ran_type = "ngran_gNB_DU",
-      #       actions = (
-      #             { name = "DRB.UEThpDl" },
-      #             { name = "DRB.UEThpUl" }
-      #             )
-      #     }
-      # )
+       Sub_ORAN_SM_List = (
+           { name = "KPM", time = 10,
+             format = 1,
+             ran_type = "ngran_gNB_DU",
+             actions = (
+                   { name = "DRB.UEThpDl" },
+                   { name = "DRB.UEThpUl" }
+                   )
+           }
+       )
 
       xApp_DB = {
           enable = "OFF"
