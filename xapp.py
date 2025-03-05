@@ -1,251 +1,219 @@
 import time
-import os
-import pdb
+# import pdb
+import inspect
+import json
 from tabulate import tabulate
-import signal
+# import curses
+# from curses import wrapper
+# from curses.textpad import rectangle, Textbox
+# import math
+from enum import Enum
+import os
 import sys
-
-cur_dir = os.path.dirname(os.path.abspath(__file__))
+_cur_dir = os.path.dirname(os.path.abspath(__file__))
 # print("Current Directory:", cur_dir)
-sdk_path = cur_dir + "/../xapp_sdk/"
+sdk_path = _cur_dir
 sys.path.append(sdk_path)
 
 import xapp_sdk as ric
-from prometheus_client import start_http_server, Gauge, Summary
-
-####################
-#### PROMETHEUS METRICS
-####################
-# Create a Summary to track latencies
-LATENCY_MAC = Summary('ric_mac_latency_us', 'Latency of MAC indications in microseconds')
-LATENCY_RLC = Summary('ric_rlc_latency_us', 'Latency of RLC indications in microseconds')
-LATENCY_PDCP = Summary('ric_pdcp_latency_us', 'Latency of PDCP indications in microseconds')
-LATENCY_KPM = Summary('ric_kpm_latency_us', 'Latency of KPM indications in microseconds')
-LATENCY_GTP = Summary('ric_gtp_latency_us', 'Latency of GTP indications in microseconds')
-
-# Create Gauges for MAC metrics
-MAC_DL_BER = Gauge('ric_mac_dl_ber', 'MAC DL BER', ['e2node', 'ue_id'])
-MAC_UL_BER = Gauge('ric_mac_ul_ber', 'MAC UL BER', ['e2node', 'ue_id'])
-MAC_BSR = Gauge('ric_mac_bsr', 'MAC BSR', ['e2node', 'ue_id'])
-MAC_WB_CQI = Gauge('ric_mac_wb_cqi', 'MAC WB CQI', ['e2node', 'ue_id'])
-MAC_DL_SCHED_RB = Gauge('ric_mac_dl_sched_rb', 'MAC DL Scheduled RBs', ['e2node', 'ue_id'])
-MAC_UL_SCHED_RB = Gauge('ric_mac_ul_sched_rb', 'MAC UL Scheduled RBs', ['e2node', 'ue_id'])
-MAC_PUSCH_SNR = Gauge('ric_mac_pusch_snr', 'MAC PUSCH SNR', ['e2node', 'ue_id'])
-MAC_PUCCH_SNR = Gauge('ric_mac_pucch_snr', 'MAC PUCCH SNR', ['e2node', 'ue_id'])
-MAC_DL_AGGR_PRB = Gauge('ric_mac_dl_aggr_prb', 'MAC DL Aggregated PRBs', ['e2node', 'ue_id'])
-MAC_UL_AGGR_PRB = Gauge('ric_mac_ul_aggr_prb', 'MAC UL Aggregated PRBs', ['e2node', 'ue_id'])
-MAC_DL_MCS1 = Gauge('ric_mac_dl_mcs1', 'MAC DL MCS1', ['e2node', 'ue_id'])
-MAC_DL_MCS2 = Gauge('ric_mac_dl_mcs2', 'MAC DL MCS2', ['e2node', 'ue_id'])
-MAC_UL_MCS1 = Gauge('ric_mac_ul_mcs1', 'MAC UL MCS1', ['e2node', 'ue_id'])
-MAC_UL_MCS2 = Gauge('ric_mac_ul_mcs2', 'MAC UL MCS2', ['e2node', 'ue_id'])
-
-# Create Gauges for RLC metrics
-RLC_TX_RETX_PKTS = Gauge('ric_rlc_tx_retx_pkts', 'RLC PDU TX Retransmitted Packets', ['e2node', 'ue_id'])
-RLC_TX_DROPPED_PKTS = Gauge('ric_rlc_tx_dropped_pkts', 'RLC PDU TX Dropped Packets', ['e2node', 'ue_id'])
-
-# Create Gauges for PDCP metrics
-PDCP_TX_BYTES = Gauge('ric_pdcp_tx_bytes', 'PDCP Total TX PDU Bytes', ['e2node', 'ue_id'])
-PDCP_RX_BYTES = Gauge('ric_pdcp_rx_bytes', 'PDCP Total RX PDU Bytes', ['e2node', 'ue_id'])
-
-# KPM Metrics (Example - Adapt based on KPM indication content)
-KPM_PRB_DL = Gauge('ric_kpm_prb_dl', 'KPM PRB DL', ['e2node', 'ue_id'])
-KPM_PRB_UL = Gauge('ric_kpm_prb_ul', 'KPM PRB UL', ['e2node', 'ue_id'])
-
-GTP_QFI = Gauge('ric_gtp_qfi', 'GTP QFI', ['e2node', 'ue_id'])
-GTP_TEID = Gauge('ric_gtp_teid', 'GTP TEID', ['e2node', 'ue_id'])
-
-def gen_id_key(id):
-    plmn = "PLMN_" + str(id.plmn.mcc) + str(id.plmn.mnc)
-    nb_id = "NBID_" + str(id.nb_id.nb_id)
-    ran_type = get_ngran_name(id.type)
-    return plmn + "-" + nb_id + "-" + ran_type
-
-def sig_handler(signum, frame):
-    print("Ctrl-C Detect")
-
-    conn = ric.conn_e2_nodes()
-    for n in conn:
-        key = gen_id_key(n.id)
-        if key in mac_hndlr:
-            for i in range(0, len(mac_hndlr[key])):
-                ric.rm_report_mac_sm(mac_hndlr[key][i])
-        if key in rlc_hndlr:
-            for i in range(0, len(rlc_hndlr[key])):
-                ric.rm_report_rlc_sm(rlc_hndlr[key][i])
-        if key in pdcp_hndlr:
-            for i in range(0, len(pdcp_hndlr[key])):
-                ric.rm_report_pdcp_sm(pdcp_hndlr[key][i])
-        if key in gtp_hndlr:
-            for i in range(0, len(gtp_hndlr[key])):
-                ric.rm_report_gtp_sm(gtp_hndlr[key][i])                
-        if key in kpm_hndlr:
-            for i in range(0, len(kpm_hndlr[key])):
-                ric.rm_report_kpm_sm(kpm_hndlr[key][i])
-
-    # Avoid deadlock. ToDo revise architecture
-    while ric.try_stop == 0:
-        time.sleep(1)
-
-    print("Test finished")
-    exit(1)
 
 
 ####################
-#### MAC INDICATION CALLBACK
+####  HELP
 ####################
-#  MACCallback class is defined and derived from C++ class mac_cb
-class MACCallback(ric.mac_cb):
-    # Define Python class 'constructor'
-    def __init__(self):
-        # Call C++ base class constructor
-        ric.mac_cb.__init__(self)
-    # Override C++ method: virtual void handle(swig_mac_ind_msg_t a) = 0;
-    def handle(self, ind):
-        # Print swig_mac_ind_msg_t
-        e2node_key = gen_id_key(ind.id)
+def print_funcs_list():
+    """
+    print_funcs_list():
+        Print provided functions in this interactive xApp.
+    """
+    function_names = [name for name, func in globals().items() if callable(func) and func.__module__ == __name__ and not name.startswith('_')]
+    print("Available functions:")
+    for name in function_names:
+        print("- " + name)
 
-        if len(ind.ue_stats) > 0:
-            t_now = time.time_ns() / 1000.0
-            t_mac = ind.tstamp / 1.0
-            t_diff = t_now - t_mac
+def print_funcs_usage(func_name):
+    """
+    print_funcs_usage(func_name):
+        Print given function information.
 
-            # Update Prometheus metrics
-            LATENCY_MAC.observe(t_diff)
-
-            #print(f"MAC Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
-            for id, ue in enumerate(ind.ue_stats):
-                MAC_DL_BER.labels(e2node=e2node_key, ue_id=id).set(ue.dl_bler)
-                MAC_UL_BER.labels(e2node=e2node_key, ue_id=id).set(ue.ul_bler)
-                MAC_BSR.labels(e2node=e2node_key, ue_id=id).set(ue.bsr)
-                MAC_WB_CQI.labels(e2node=e2node_key, ue_id=id).set(ue.wb_cqi)
-                MAC_DL_SCHED_RB.labels(e2node=e2node_key, ue_id=id).set(ue.dl_sched_rb)
-                MAC_UL_SCHED_RB.labels(e2node=e2node_key, ue_id=id).set(ue.ul_sched_rb)
-                MAC_PUSCH_SNR.labels(e2node=e2node_key, ue_id=id).set(ue.pusch_snr)
-                MAC_PUCCH_SNR.labels(e2node=e2node_key, ue_id=id).set(ue.pucch_snr)
-                MAC_DL_AGGR_PRB.labels(e2node=e2node_key, ue_id=id).set(ue.dl_aggr_prb)
-                MAC_UL_AGGR_PRB.labels(e2node=e2node_key, ue_id=id).set(ue.ul_aggr_prb)
-                MAC_DL_MCS1.labels(e2node=e2node_key, ue_id=id).set(ue.dl_mcs1)
-                MAC_UL_MCS1.labels(e2node=e2node_key, ue_id=id).set(ue.ul_mcs1)
-                MAC_DL_MCS2.labels(e2node=e2node_key, ue_id=id).set(ue.dl_mcs2)
-                MAC_UL_MCS2.labels(e2node=e2node_key, ue_id=id).set(ue.ul_mcs2)
-            # print('MAC rnti = ' + str(ind.ue_stats[0].rnti))
-
-####################
-#### RLC INDICATION CALLBACK
-####################
-class RLCCallback(ric.rlc_cb):
-    # Define Python class 'constructor'
-    def __init__(self):
-        # Call C++ base class constructor
-        ric.rlc_cb.__init__(self)
-    # Override C++ method: virtual void handle(swig_rlc_ind_msg_t a) = 0;
-    def handle(self, ind):
-        # Print swig_rlc_ind_msg_t
-        e2node_key = gen_id_key(ind.id)
-
-        if len(ind.rb_stats) > 0:
-            t_now = time.time_ns() / 1000.0
-            t_rlc = ind.tstamp / 1.0
-            t_diff = t_now - t_rlc
-
-            # Update Prometheus metrics
-            LATENCY_RLC.observe(t_diff)
-
-            #print(f"RLC Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
-            for id, rb in enumerate(ind.rb_stats):
-                RLC_TX_RETX_PKTS.labels(e2node=e2node_key, ue_id=id).set(rb.txpdu_retx_pkts)
-                RLC_TX_DROPPED_PKTS.labels(e2node=e2node_key, ue_id=id).set(rb.txpdu_dd_pkts)
+    Parameters:
+        func_name: function name (ex: xapp.init)
+    """
+    print(func_name.__doc__)
 
 
-####################
-#### PDCP INDICATION CALLBACK
-####################
-class PDCPCallback(ric.pdcp_cb):
-    # Define Python class 'constructor'
-    def __init__(self):
-        # Call C++ base class constructor
-        ric.pdcp_cb.__init__(self)
-    # Override C++ method: virtual void handle(swig_pdcp_ind_msg_t a) = 0;
-    def handle(self, ind):
-        # Print swig_pdcp_ind_msg_t
-        e2node_key = gen_id_key(ind.id)
+ex_kpm_actions_gnb = ["DRB.PdcpSduVolumeDL", "DRB.PdcpSduVolumeUL", "DRB.RlcSduDelayDl", "DRB.UEThpDl", "DRB.UEThpUl", "RRU.PrbTotDl", "RRU.PrbTotUl"]
+ex_kpm_actions_gnb_du = ["DRB.RlcSduDelayDl", "DRB.UEThpDl", "DRB.UEThpUl", "RRU.PrbTotDl", "RRU.PrbTotUl"]
+ex_kpm_actions_gnb_cu = ["DRB.PdcpSduVolumeDL", "DRB.PdcpSduVolumeUL"]
 
-        if len(ind.rb_stats) > 0:
-            t_now = time.time_ns() / 1000.0
-            t_pdcp = ind.tstamp / 1.0
-            t_diff = t_now - t_pdcp
+class _ServiceModelEnum(Enum):
+    MAC = "mac_sm"
+    SLICE = "slice_sm"
+    KPM = "kpm_sm"
+ServiceModel: _ServiceModelEnum
+ServiceModel = _ServiceModelEnum.SLICE
 
-            # Update Prometheus metrics
-            LATENCY_PDCP.observe(t_diff)
+class _SubTTIEnum(Enum):
+    ms1 = ric.Interval_ms_1
+    ms2 = ric.Interval_ms_2
+    ms5 = ric.Interval_ms_5
+    ms10 = ric.Interval_ms_10
+    ms100 = ric.Interval_ms_100
+    ms1000 = ric.Interval_ms_1000
+SubTimeInterval: _SubTTIEnum
+SubTimeInterval = _SubTTIEnum.ms10
 
-            #print(f"PDCP Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
-            # print('PDCP rnti = '+ str(ind.rb_stats[0].rnti))
-            for id, rb in enumerate(ind.rb_stats):
-                PDCP_TX_BYTES.labels(e2node=e2node_key, ue_id=id).set(rb.txpdu_bytes)
-                PDCP_RX_BYTES.labels(e2node=e2node_key, ue_id=id).set(rb.rxpdu_bytes)
+class _SliceTypeEnum(Enum):
+    ADDMOD = "ADDMOD"
+    DELETE = "DEL"
+    ASSOC_UE = "ASSOC_UE"
+SliceType: _SliceTypeEnum
+SliceType = _SliceTypeEnum.ADDMOD
 
-####################
-#### GTP INDICATION CALLBACK
-####################
-
-# Create a callback for GTP which derived it from C++ class gtp_cb
-class GTPCallback(ric.gtp_cb):
-    def __init__(self):
-        # Inherit C++ gtp_cb class
-        ric.gtp_cb.__init__(self)
-    # Create an override C++ method
-    def handle(self, ind):
-        e2node_key = gen_id_key(ind.id)
-        
-        if len(ind.gtp_stats) > 0:
-            t_now = time.time_ns() / 1000.0
-            t_gtp = ind.tstamp / 1.0
-            t_diff = t_now - t_gtp
-
-            # Update Prometheus metrics
-            LATENCY_GTP.observe(t_diff)
-
-            #print(f"GTP Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
-            for id, stat in enumerate(ind.gtp_stats):
-                print(stat.qfi)
-                GTP_QFI.labels(e2node=e2node_key, ue_id=id).set(stat.qfi)
-                GTP_TEIDGNB.labels(e2node=e2node_key, ue_id=id).set(stat.teidgnb)
-                GTP_TEIDUPF.labels(e2node=e2node_key, ue_id=id).set(stat.teidupf)
-                GTP_RNTI.labels(e2node=e2node_key, ue_id=id).set(stat.rnti)
 ####################
 #### KPM INDICATION CALLBACK
 ####################
 # Create a callback for KPM which derived it from C++ class kpm_cb
-class KPMCallback(ric.kpm_cb):
+class _KPMCallback(ric.kpm_cb):
     def __init__(self):
-        # Inherit C++ kpm_cb class
+        # Inherit C++ _kpm_cb class
         ric.kpm_cb.__init__(self)
     # Create an override C++ method
     def handle(self, ind):
-        print("Hello world")
-        print(ind.msg.type)
-        if ind.hdr:
-            t_now = time.time_ns() / 1000.0
-            t_kpm = ind.hdr.kpm_ric_ind_hdr_format_1.collectStartTime / 1.0
-            t_diff = t_now - t_kpm
-            print(f"KPM Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
-            # if ind.hdr.kpm_ric_ind_hdr_format_1.fileformat_version:
-            #     print(f"fileformat_version {ind.hdr.kpm_ric_ind_hdr_format_1.fileformat_version}")
-            # if ind.hdr.kpm_ric_ind_hdr_format_1.sender_name:
-            #     print(f"sender_name {ind.hdr.kpm_ric_ind_hdr_format_1.sender_name}")
-            # if ind.hdr.kpm_ric_ind_hdr_format_1.sender_type:
-            #     print(f"sender_type {ind.hdr.kpm_ric_ind_hdr_format_1.sender_type}")
-            # if ind.hdr.kpm_ric_ind_hdr_format_1.vendor_name:
-            #     print(f"vendor_name {ind.hdr.kpm_ric_ind_hdr_format_1.vendor_name}")
+        # if ind.hdr:
+        t_now = time.time_ns() / 1000.0
+        #     t_kpm = ind.hdr.kpm_ric_ind_hdr_format_1.collectStartTime / 1.0
+        #     t_diff = t_now - t_kpm
+        #     print(f"KPM Indication tstamp {t_now} diff {t_diff} E2-node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+        _kpm_ind_to_dict_json(ind, t_now, ind.id)
+
+
+####################
+####  GLOBAL VALUE
+####################
+_e2nodes = 0
+MAX_E2_NODES = 10
+_slice_hndlr = {}
+_mac_hndlr = {}
+_kpm_hndlr = {}
+_slice_cb = 0
+_mac_cb = 0
+_kpm_cb = 0
+
+####################
+####  KPM INDICATION MSG TO JSON
+####################
+
+_kpm_stats_struct = {
+    "Format" : {},
+    "Latency" : {},
+    "RAN" : {
+        "nb_id" : {},
+        "ran_type" : {},
+    },
+    "UEs" : []
+}
+
+global _global_kpm_stats
+_global_kpm_stats = [_kpm_stats_struct for i in range(0, MAX_E2_NODES)]
+
+def _kpm_ind_to_dict_json(ind, t_now, id):
+    global _e2nodes
+    # find e2 node idx
+    n_idx = -1
+    for n in _e2nodes:
+        if n.id.nb_id.nb_id == id.nb_id.nb_id:
+            if n.id.type == id.type:
+                n_idx = _e2nodes.index(n)
+
+                break
+    if n_idx == -1:
+        print("cannot find e2 node idx")
+        return
+
+    global _global_kpm_stats
+    _global_kpm_stats[n_idx] = {
+        "Format" : {},
+        "Latency" : {},
+        "RAN" : {
+            "nb_id" : {},
+            "ran_type" : {},
+        },
+        "UEs" : []
+    }
+
+    kpm_stats = _global_kpm_stats[n_idx]
+
+    # e2 node id
+    kpm_stats["RAN"]["nb_id"] = id.nb_id.nb_id
+    kpm_stats["RAN"]["ran_type"] = _get_ngran_name(id.type)
+
+    # initial
+    kpm_dict = kpm_stats
+
+    # header
+    if ind.hdr:
+        # latency
+        t_diff = t_now - ind.hdr.kpm_ric_ind_hdr_format_1.collectStartTime
+        kpm_dict.update({"Latency" :  t_diff})
+
+        # format # TODO: different format should map to different json struct
         if ind.msg.type == ric.FORMAT_1_INDICATION_MESSAGE:
-            ind_frm1 = ind.msg.frm_1
-            print(f"ind_frm1.meas_data_lst_len {ind_frm1.meas_data_lst_len}")
-            for index, meas_data in enumerate(ind_frm1.meas_data_lst):
-                print(f"meas data idx {index}")
+            kpm_dict.update({"Format" : 1})
+        elif ind.msg.type == ric.FORMAT_3_INDICATION_MESSAGE:
+            kpm_dict.update({"Format" : 3})
+        else:
+            kpm_dict.update({"Format" : "UNKNOWN"})
+            print(f"not implement KPM indication format {ind.msg.type}")
+
+        if ind.hdr.kpm_ric_ind_hdr_format_1.fileformat_version:
+            kpm_stats["RAN"]["fileformat_version"] = ind.hdr.kpm_ric_ind_hdr_format_1.fileformat_version
+        if ind.hdr.kpm_ric_ind_hdr_format_1.sender_name:
+            kpm_stats["RAN"]["sender_name"] = ind.hdr.kpm_ric_ind_hdr_format_1.sender_name
+        if ind.hdr.kpm_ric_ind_hdr_format_1.sender_type:
+            kpm_stats["RAN"]["sender_type"] = ind.hdr.kpm_ric_ind_hdr_format_1.sender_type
+        if ind.hdr.kpm_ric_ind_hdr_format_1.vendor_name:
+            kpm_stats["RAN"]["vendor_name"] = ind.hdr.kpm_ric_ind_hdr_format_1.vendor_name
+
+    # message
+    if kpm_dict["Format"] == 3:
+        for index, ue_meas in enumerate(ind.msg.frm_3.meas_report_per_ue):
+
+            ue_dict = {
+                "UE_ID" : {
+                    "idx" : index,
+                    "type" : {},
+                },
+                "Measurements" : []
+            }
+
+            ue_id = ue_dict["UE_ID"]
+
+            ue = ue_meas.ue_meas_report_lst
+            if ue.type == ric.GNB_UE_ID_E2SM:
+                ue_id.update({"type" : "GNB_UE_ID_E2SM"})
+                ue_id["amf_ue_ngap_id"] = ue.gnb.amf_ue_ngap_id
+                ue_id["guami.plmn_id.mcc"] = ue.gnb.guami.plmn_id.mcc
+                ue_id["guami.plmn_id.mnc"] = ue.gnb.guami.plmn_id.mnc
+                ue_id["guami.plmn_id.mnc_digit_len"] = ue.gnb.guami.plmn_id.mnc_digit_len
+            elif ue.type == ric.GNB_DU_UE_ID_E2SM:
+                ue_id.update({"type" : "GNB_DU_UE_ID_E2SM"})
+                ue_id["gnb_cu_ue_f1ap"] = ue.gnb_du.gnb_cu_ue_f1ap
+            elif ue.type == ric.GNB_CU_UP_UE_ID_E2SM:
+                ue_id.update({"type" : "GNB_CU_UP_UE_ID_E2SM"})
+                ue_id["gnb_cu_cp_ue_e1ap"] = ue.gnb_cu_up.gnb_cu_cp_ue_e1ap
+            else:
+                print("python3: not support ue_id_e2sm type")
+
+
+            ind_frm1 = ue_meas.ind_msg_format_1
+            for idx, meas_data in enumerate(ind_frm1.meas_data_lst):
+                tmp_dict = {"idx" : idx}
                 if meas_data.incomplete_flag == ric.TRUE_ENUM_VALUE:
-                    print(f"<<< Measurement Record not reliable >>> ")
+                    tmp_dict["incomplete_flag"] = "true"
+
+                tmp_dict["data"] = []
                 if meas_data.meas_record_len == ind_frm1.meas_info_lst_len:
-                    # print(f"meas_data.meas_record_len {meas_data.meas_record_len}, ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}")
                     for meas_record, meas_info in zip(meas_data.meas_record_lst, ind_frm1.meas_info_lst):
                         # print(f"value: {meas_record.value}")
                         # print(f"type: {meas_info.meas_type.type}")
@@ -266,246 +234,482 @@ class KPMCallback(ric.kpm_cb):
                             print_name_id = meas_info.meas_type.id
                         else:
                             print(f"unknown meas info type")
-                        print(f"Measurement name/id:value {print_name_id}:{print_value}")
+                        meas_dict = {
+                            "name/id" : print_name_id,
+                            "value" : print_value
+                        }
+                        tmp_dict["data"].append(meas_dict)
                 else:
                     print(f"meas_data.meas_record_len {meas_data.meas_record_len} != ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}, cannot map value to name")
+                ue_dict["Measurements"].append(tmp_dict)
 
-            print(f"ind_frm1.gran_period_ms {ind_frm1.gran_period_ms}")
-        elif ind.msg.type == ric.FORMAT_3_INDICATION_MESSAGE:
-            # print(f"ind.msg.type {ind.msg.type}")
-            # print(f"ind.msg.frm_3.ue_meas_report_lst_len {ind.msg.frm_3.ue_meas_report_lst_len}")
-            for ue_meas in ind.msg.frm_3.meas_report_per_ue: # swig_meas_report_per_ue_t
-                # swig_ue_id_e2sm_t
-                print(f"ue_meas.type {ue_meas.ue_meas_report_lst.type}")
-                ue = ue_meas.ue_meas_report_lst
-                if ue.type == ric.GNB_UE_ID_E2SM:
-                    print(f"ue.gnb.amf_ue_ngap_id {ue.gnb.amf_ue_ngap_id},"
-                          f"ue.gnb.guami.plmn_id.mcc {ue.gnb.guami.plmn_id.mcc},"
-                          f"ue.gnb.guami.plmn_id.mnc {ue.gnb.guami.plmn_id.mnc},"
-                          f"ue.gnb.guami.plmn_id.mnc_digit_len {ue.gnb.guami.plmn_id.mnc_digit_len}")
-                elif ue.type == ric.GNB_DU_UE_ID_E2SM:
-                    print(f"ue.gnb_du.gnb_cu_ue_f1ap {ue.gnb_du.gnb_cu_ue_f1ap}")
-                elif ue.type == ric.GNB_CU_UP_UE_ID_E2SM:
-                    print(f"ue.gnb_cu_up.gnb_cu_cp_ue_e1ap {ue.gnb_cu_up.gnb_cu_cp_ue_e1ap}")
+            kpm_dict["UEs"].append(ue_dict)
+
+
+####################
+#### MAC INDICATION CALLBACK
+####################
+class _MACCallback(ric.mac_cb):
+    # Define Python class 'constructor'
+    def __init__(self):
+        # Call C++ base class constructor
+        ric.mac_cb.__init__(self)
+    # Override C++ method: virtual void handle(swig_mac_ind_msg_t a) = 0;
+    def handle(self, ind):
+        # Print swig_mac_ind_msg_t
+        if len(ind.ue_stats) > 0:
+            t_now = time.time_ns() / 1000.0
+            t_mac = ind.tstamp / 1.0
+            t_diff = t_now - t_mac
+            # print(f"MAC Indication tstamp {t_now} diff {t_diff} e2 node type {ind.id.type} nb_id {ind.id.nb_id.nb_id}")
+            # print('MAC rnti = ' + str(ind.ue_stats[0].rnti))
+
+####################
+####  SLICE INDICATION MSG TO JSON
+####################
+_slice_stats_struct = {
+    "RAN" : {
+        "nb_id" : {},
+        "ran_type" : {},
+        "dl" : {}
+        # TODO: handle the ul slice stats, currently there is no ul slice stats in database(SLICE table)
+        # "ul" : {}
+    },
+    "UE" : {}
+}
+
+global _global_slice_stats
+_global_slice_stats = [_slice_stats_struct for i in range(0, MAX_E2_NODES)]
+
+def _slice_ind_to_dict_json(ind, id):
+    global _e2nodes
+    # find e2 node idx
+    n_idx = -1
+    for n in _e2nodes:
+        if n.id.nb_id.nb_id == id.nb_id.nb_id:
+            if n.id.type == id.type:
+                n_idx = _e2nodes.index(n)
+                break
+    if n_idx == -1:
+        print("cannot find e2 node idx")
+        return
+
+    global _global_slice_stats
+    _global_slice_stats[n_idx] = {
+        "RAN" : {
+            "nb_id" : {},
+            "ran_type" : {},
+            "dl" : {}
+            # TODO: handle the ul slice stats, currently there is no ul slice stats in database(SLICE table)
+            # "ul" : {}
+        },
+        "UE" : {}
+    }
+    slice_stats = _global_slice_stats[n_idx]
+
+    # RAN - e2 node id
+    slice_stats["RAN"]["nb_id"] = id.nb_id.nb_id
+    slice_stats["RAN"]["ran_type"] = _get_ngran_name(id.type)
+    # RAN - dl
+    dl_dict = slice_stats["RAN"]["dl"]
+    if ind.slice_stats.dl.len_slices <= 0:
+        dl_dict["num_of_slices"] = ind.slice_stats.dl.len_slices
+        dl_dict["slice_sched_algo"] = "null"
+        dl_dict["ue_sched_algo"] = ind.slice_stats.dl.sched_name[0]
+    else:
+        dl_dict["num_of_slices"] = ind.slice_stats.dl.len_slices
+        dl_dict["slice_sched_algo"] = "null"
+        dl_dict["slices"] = []
+        slice_algo = ""
+        for s in ind.slice_stats.dl.slices:
+            if s.params.type == 1: # TODO: convert from int to string, ex: type = 1 -> STATIC
+                slice_algo = "STATIC"
+            elif s.params.type == 2:
+                slice_algo = "NVS"
+            elif s.params.type == 4:
+                slice_algo = "EDF"
+            else:
+                slice_algo = "unknown"
+            dl_dict.update({"slice_sched_algo" : slice_algo})
+
+            slices_dict = {
+                "index" : s.id,
+                "label" : s.label[0],
+                "ue_sched_algo" : s.sched[0],
+            }
+            if dl_dict["slice_sched_algo"] == "STATIC":
+                slices_dict["slice_algo_params"] = {
+                    "pos_low" : s.params.u.sta.pos_low,
+                    "pos_high" : s.params.u.sta.pos_high
+                }
+            elif dl_dict["slice_sched_algo"] == "NVS":
+                if s.params.u.nvs.conf == 0: # TODO: convert from int to string, ex: conf = 0 -> RATE
+                    slices_dict["slice_algo_params"] = {
+                        "type" : "RATE",
+                        "mbps_rsvd" : s.params.u.nvs.u.rate.u1.mbps_required,
+                        "mbps_ref" : s.params.u.nvs.u.rate.u2.mbps_reference
+                    }
+                elif s.params.u.nvs.conf == 1: # TODO: convert from int to string, ex: conf = 1 -> CAPACITY
+                    slices_dict["slice_algo_params"] = {
+                        "type" : "CAPACITY",
+                        "pct_rsvd" : s.params.u.nvs.u.capacity.u.pct_reserved
+                    }
                 else:
-                    print("python3: not support ue_id_e2sm type")
-                # swig_kpm_ind_msg_format_1_t
-                ind_frm1 = ue_meas.ind_msg_format_1
-                print(f"ind_frm1.meas_data_lst_len {ind_frm1.meas_data_lst_len}")
-                for meas_data in ind_frm1.meas_data_lst:
-                    # print(f"meas_data.meas_record_len {meas_data.meas_record_len}")
-                    # for meas_record in meas_data.meas_record_lst:
-                    #     # print(f"meas_record.value {meas_record.value}")
-                    #     if meas_record.value == ric.INTEGER_MEAS_VALUE:
-                    #         print(f"meas_record.int_val {meas_record.int_val}")
-                    #     elif meas_record.value == ric.REAL_MEAS_VALUE:
-                    #         print(f"meas_record.real_val {meas_record.real_val}")
-                    #     elif meas_record.value == ric.NO_VALUE_MEAS_VALUE:
-                    #         print(f"meas_record.no_value {meas_record.no_value}")
-                    #     else:
-                    #         print(f"unknown meas_record")
-                    if meas_data.incomplete_flag == ric.TRUE_ENUM_VALUE:
-                        print(f"<<< Measurement Record not reliable >>> ")
+                    slices_dict["slice_algo_params"] = {"type" : "unknown"}
+            elif dl_dict["slice_sched_algo"] == "EDF":
+                slices_dict["slice_algo_params"] = {
+                    "deadline" : s.params.u.edf.deadline,
+                    "guaranteed_prbs" : s.params.u.edf.guaranteed_prbs,
+                    "max_replenish" : s.params.u.edf.max_replenish
+                }
+            else:
+                print("unknown slice algorithm, cannot handle params")
+            dl_dict["slices"].append(slices_dict)
 
-                    if meas_data.meas_record_len == ind_frm1.meas_info_lst_len:
-                        # print(f"meas_data.meas_record_len {meas_data.meas_record_len}, ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}")
-                        for meas_record, meas_info in zip(meas_data.meas_record_lst, ind_frm1.meas_info_lst):
-                            # print(f"value: {meas_record.value}")
-                            # print(f"type: {meas_info.meas_type.type}")
-                            print_value = 0
-                            if meas_record.value == ric.INTEGER_MEAS_VALUE:
-                                print_value = meas_record.int_val
-                            elif meas_record.value == ric.REAL_MEAS_VALUE:
-                                print_value = meas_record.real_val
-                            elif meas_record.value == ric.NO_VALUE_MEAS_VALUE:
-                                print_value = meas_record.no_value
-                            else:
-                                print(f"unknown meas_record")
+    # RAN - ul
+    # TODO: handle the ul slice stats, currently there is no ul slice stats in database(SLICE table)
+    # ul_dict = slice_stats["RAN"]["ul"]
+    # if ind.slice_stats.ul.len_slices <= 0:
+    #     dl_dict["num_of_slices"] = ind.slice_stats.ul.len_slices
+    #     dl_dict["slice_sched_algo"] = "null"
+    #     dl_dict["ue_sched_algo"] = ind.slice_stats.ul.sched_name
 
-                            print_name_id = 0
-                            if meas_info.meas_type.type == ric.NAME_MEAS_TYPE:
-                                print_name_id = meas_info.meas_type.name
-                            elif meas_info.meas_type.type == ric.ID_MEAS_TYPE:
-                                print_name_id = meas_info.meas_type.id
-                            else:
-                                print(f"unknown meas info type")
-                            print(f"Measurement name/id:value {print_name_id}:{print_value}")
-                    else:
-                        print(f"meas_data.meas_record_len {meas_data.meas_record_len} != ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}, cannot map value to name")
-
-
-                # print(f"ind_frm1.meas_info_lst_len {ind_frm1.meas_info_lst_len}")
-                # for meas_info in ind_frm1.meas_info_lst:
-                #     # print(f"meas_info.meas_type.type {meas_info.meas_type.type}")
-                #     if meas_info.meas_type.type == ric.NAME_MEAS_TYPE:
-                #         print(f"meas_info.meas_type.name {meas_info.meas_type.name}")
-                #     elif meas_info.meas_type.type == ric.ID_MEAS_TYPE:
-                #         print(f"meas_info.meas_type.id {meas_info.meas_type.id}")
-                #     else:
-                #         print(f"unknown meas info type")
-
-                print(f"ind_frm1.gran_period_ms {ind_frm1.gran_period_ms}")
-        else:
-            print(f"not implement KPM indication format {ind.msg.type}")
-
-
-
-####################
-#### UPDATE CONNECTED E2 NODES
-####################
-def get_e2_nodes():
-    return ric.conn_e2_nodes()
-
-####################
-#### SEND SUBSCRIPTION REQUEST
-####################
-mac_cb = 0
-rlc_cb = 0
-pdcp_cb = 0
-kpm_cb = 0
-gtp_cb = 0
-def send_mac_sub_req(id, tti):
-    global mac_cb
-    global mac_hndlr
-    mac_cb = MACCallback()
-    hndlr = ric.report_mac_sm(id, tti, mac_cb)
-    key = gen_id_key(id)
-    mac_hndlr.setdefault(key, []).append(hndlr)
-def send_rlc_sub_req(id, tti):
-    global rlc_cb
-    global rlc_hndlr
-    rlc_cb = RLCCallback()
-    hndlr = ric.report_rlc_sm(id, tti, rlc_cb)
-    key = gen_id_key(id)
-    rlc_hndlr.setdefault(key, []).append(hndlr)
-def send_pdcp_sub_req(id, tti):
-    global pdcp_cb
-    global pdcp_hndlr
-    pdcp_cb = PDCPCallback()
-    hndlr = ric.report_pdcp_sm(id, tti, pdcp_cb)
-    key = gen_id_key(id)
-    pdcp_hndlr.setdefault(key, []).append(hndlr)
-def send_gtp_sub_req(id, tti):
-    global gtp_cb
-    global gtp_hndlr
-    gtp_cb = GTPCallback()
-    hndlr = ric.report_gtp_sm(id, tti, gtp_cb)
-    key = gen_id_key(id)
-    gtp_hndlr.setdefault(key, []).append(hndlr)
-def send_kpm_sub_req(id, tti, action):
-    global kpm_cb
-    global kpm_hndlr
-    kpm_cb = KPMCallback()
-    hndlr = ric.report_kpm_sm(id, tti, action, kpm_cb)
-    key = gen_id_key(id)
-    kpm_hndlr.setdefault(key, []).append(hndlr)
-
-def get_cust_tti(tti):
-    if tti == "1_ms":
-        return ric.Interval_ms_1
-    elif tti == "2_ms":
-        return ric.Interval_ms_2
-    elif tti == "5_ms":
-        return ric.Interval_ms_5
-    elif tti == "10_ms":
-        return ric.Interval_ms_10
-    elif tti == "100_ms":
-        return ric.Interval_ms_100
-    elif tti == "1000_ms":
-        return ric.Interval_ms_1000
+    # UE
+    ue_dict = slice_stats["UE"]
+    if ind.ue_slice_stats.len_ue_slice <= 0:
+        ue_dict["num_of_ues"] = ind.ue_slice_stats.len_ue_slice
     else:
-        print(f"Unknown tti {tti}")
-        exit()
+        ue_dict["num_of_ues"] = ind.ue_slice_stats.len_ue_slice
+        ue_dict["ues"] = []
+        for ue_idx, u in enumerate(ind.ue_slice_stats.ues):
+            ues_dict = {}
+            dl_id = "null"
+            if u.dl_id >= 0 and dl_dict["num_of_slices"] > 0:
+                dl_id = u.dl_id
+            ues_dict = {
+                "idx": ue_idx,
+                "rnti" : hex(u.rnti),
+                "assoc_dl_slice_id" : dl_id
+                # TODO: handle the associated ul slice id, currently there is no ul slice id in database(UE_SLICE table)
+                # "assoc_ul_slice_id" : ul_id
+            }
+            ue_dict["ues"].append(ues_dict)
 
-def get_oran_tti(tti):
-    if tti == 1:
-        return ric.Interval_ms_1
-    elif tti == 2:
-        return ric.Interval_ms_2
-    elif tti == 5:
-        return ric.Interval_ms_5
-    elif tti == 10:
-        return ric.Interval_ms_10
-    elif tti == 100:
-        return ric.Interval_ms_100
-    elif tti == 1000:
-        return ric.Interval_ms_1000
-    else:
-        print(f"Unknown tti {tti}")
-        exit()
+    ind_dict = slice_stats
+    ind_json = json.dumps(ind_dict)
 
-def send_subscription_req(nodes, cust_sm, oran_sm):
-    for sm_info in cust_sm:
-        sm_name = sm_info.name
-        sm_time = sm_info.time
-        tti = get_cust_tti(sm_time)
+    json_fname = "rt_slice_stats_nb_id" + str(id.nb_id.nb_id)+ ".json"
+    with open(json_fname, "w") as outfile:
+        outfile.write(ind_json)
+    # print(ind_dict)
 
-        if sm_name == "MAC" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_DU or nodes.id.type == ric.e2ap_ngran_eNB):
-            print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
-            send_mac_sub_req(nodes.id, tti)
-        elif sm_name == "RLC" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_DU or nodes.id.type == ric.e2ap_ngran_eNB):
-            print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
-            send_rlc_sub_req(nodes.id, tti)
-        elif sm_name == "PDCP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_gNB_CUUP):
-            print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
-            send_pdcp_sub_req(nodes.id, tti)
-        elif sm_name == "GTP" and (nodes.id.type == ric.e2ap_ngran_gNB or nodes.id.type == ric.e2ap_ngran_gNB_CU or nodes.id.type == ric.e2ap_ngran_gNB_CUUP):
-            print(f"<<<< Subscribe to {sm_name} with time period {sm_time} >>>>")
-            send_gtp_sub_req(nodes.id, tti)        
-        elif sm_name == "GTP" or sm_name == "MAC" or sm_name == "PDCP" or sm_name == "RLC":
-            pass
+
+
+####################
+#### SLICE INDICATION CALLBACK
+####################
+class _SLICECallback(ric.slice_cb):
+    # Define Python class 'constructor'
+    def __init__(self):
+        # Call C++ base class constructor
+        ric.slice_cb.__init__(self)
+    # Override C++ method: virtual void handle(swig_slice_ind_msg_t a) = 0;
+    def handle(self, ind):
+        # Print swig_slice_ind_msg_t
+        #if (ind.slice_stats.dl.len_slices > 0):
+        #     print('SLICE Indication tstamp = ' + str(ind.tstamp))
+        #     print('SLICE STATE: len_slices = ' + str(ind.slice_stats.dl.len_slices))
+        #     print('SLICE STATE: sched_name = ' + str(ind.slice_stats.dl.sched_name[0]))
+        #if (ind.ue_slice_stats.len_ue_slice > 0):
+        #    print('UE ASSOC SLICE STATE: len_ue_slice = ' + str(ind.ue_slice_stats.len_ue_slice))
+        _slice_ind_to_dict_json(ind, ind.id)
+
+####################
+####  SLICE CONTROL FUNCS
+####################
+def _fill_slice_conf(slice_params, slice_sched_algo):
+    s = ric.fr_slice_t()
+    s.id = slice_params["index"]
+    s.label = slice_params["label"]
+    s.len_label = len(slice_params["label"])
+    s.sched = slice_params["ue_sched_algo"]
+    s.len_sched = len(slice_params["ue_sched_algo"])
+    if slice_sched_algo == "STATIC":
+        s.params.type = ric.SLICE_ALG_SM_V0_STATIC
+        s.params.u.sta.pos_low = slice_params["slice_algo_params"]["pos_low"]
+        s.params.u.sta.pos_high = slice_params["slice_algo_params"]["pos_high"]
+    elif slice_sched_algo == "NVS":
+        s.params.type = ric.SLICE_ALG_SM_V0_NVS
+        if slice_params["slice_algo_params"]["type"] == "RATE":
+            s.params.u.nvs.conf = ric.SLICE_SM_NVS_V0_RATE
+            s.params.u.nvs.u.rate.u1.mbps_required = slice_params["slice_algo_params"]["mbps_rsvd"]
+            s.params.u.nvs.u.rate.u2.mbps_reference = slice_params["slice_algo_params"]["mbps_ref"]
+            # print("ADD NVS DL SLCIE: id", s.id,
+            # ", conf", s.params.u.nvs.conf,
+            # ", mbps_rsrv", s.params.u.nvs.u.rate.u1.mbps_required,
+            # ", mbps_ref", s.params.u.nvs.u.rate.u2.mbps_reference)
+        elif slice_params["slice_algo_params"]["type"] == "CAPACITY":
+            s.params.u.nvs.conf = ric.SLICE_SM_NVS_V0_CAPACITY
+            s.params.u.nvs.u.capacity.u.pct_reserved = slice_params["slice_algo_params"]["pct_rsvd"]
+            # print("ADD NVS DL SLCIE: id", s.id,
+            # ", conf", s.params.u.nvs.conf,
+            # ", pct_rsvd", s.params.u.nvs.u.capacity.u.pct_reserved)
         else:
-            print(f"not yet implemented function to send subscription for {sm_name}")
-
-    for sm_info in oran_sm:
-        sm_name = sm_info.name
-        if sm_name != "KPM":
-            print(f"not support {sm_name} in python")
-            continue
-        sm_time = sm_info.time
-        tti = get_oran_tti(sm_time)
-        sm_format = sm_info.format
-        ran_type = sm_info.ran_type
-        print("SM: " + str(sm_name) + " RAN Type: " + str(ran_type))
-        print(str(nodes.id.type) + " " + str(ric.get_e2ap_ngran_name(nodes.id.type)))
-        act_len = sm_info.act_len
-        act = []
-        for a in sm_info.actions:
-            act.append(a.name)
-        if nodes.id.type == ric.e2ap_ngran_eNB:
-            continue
-        if ran_type == ric.get_e2ap_ngran_name(nodes.id.type):
-            send_kpm_sub_req(nodes.id, tti, act)
+            print("Unkown NVS conf")
+    elif slice_sched_algo == "EDF":
+        s.params.type = ric.SLICE_ALG_SM_V0_EDF
+        s.params.u.edf.deadline = slice_params["slice_algo_params"]["deadline"]
+        s.params.u.edf.guaranteed_prbs = slice_params["slice_algo_params"]["guaranteed_prbs"]
+        s.params.u.edf.max_replenish = slice_params["slice_algo_params"]["max_replenish"]
+    else:
+        print("Unkown slice algo type")
 
 
-        # if nodes.id.type == ric.e2ap_ngran_gNB:
-        #     send_mac_sub_req(nodes.id, tti)
-        #     send_rlc_sub_req(nodes.id, tti)
-        #     send_pdcp_sub_req(nodes.id, tti)
-        #     action = ["DRB.PdcpSduVolumeDL", "DRB.PdcpSduVolumeUL", "DRB.RlcSduDelayDl", "DRB.UEThpDl", "DRB.UEThpUl", "RRU.PrbTotDl", "RRU.PrbTotUl"]
-        #     send_kpm_sub_req(nodes.id, tti, action)
-        # elif nodes.id.type == ric.e2ap_ngran_gNB_CU:
-        #     send_pdcp_sub_req(nodes.id, tti)
-        #     action = ["DRB.PdcpSduVolumeDL", "DRB.PdcpSduVolumeUL"]
-        #     send_kpm_sub_req(nodes.id, tti, action)
-        # elif nodes.id.type == ric.e2ap_ngran_gNB_DU:
-        #     send_mac_sub_req(nodes.id, tti)
-        #     send_rlc_sub_req(nodes.id, tti)
-        #     action = ["DRB.RlcSduDelayDl", "DRB.UEThpDl", "DRB.UEThpUl", "RRU.PrbTotDl", "RRU.PrbTotUl"]
-        #     send_kpm_sub_req(nodes.id, tti, action)
-        # elif nodes.id.type == ric.e2ap_ngran_eNB:
-        #     send_mac_sub_req(nodes.id, tti)
-        #     send_rlc_sub_req(nodes.id, tti)
-        #     send_pdcp_sub_req(nodes.id, tti)
-        # else:
-        #     print(f"NG-RAN Type {ran_type} not yet implemented\n")
-        #     exit()
-
+    return s
 
 ####################
-#### GET NGRAN TYPE IN STRING
+####  SLICE CONTROL PARAMETER EXAMPLE - ADD/MOD SLICE
 ####################
-def get_ngran_name(ran_type):
+# ex_slice_conf_addmod_static = {
+#     "num_of_slices" : 3,
+#     "slice_sched_algo" : "STATIC",
+#     "slices" : [
+#         {
+#             "index" : 0,
+#             "label" : "s1",
+#             "ue_sched_algo" : "PF",
+#             "slice_algo_params" : {"pos_low" : 0, "pos_high" : 2},
+#         },
+#         {
+#             "index" : 2,
+#             "label" : "s2",
+#             "ue_sched_algo" : "PF",
+#             "slice_algo_params" : {"pos_low" : 3, "pos_high" : 10},
+#         },
+#         {
+#             "index" : 5,
+#             "label" : "s3",
+#             "ue_sched_algo" : "PF",
+#             "slice_algo_params" : {"pos_low" : 11, "pos_high" : 13},
+#         }
+#     ]
+# }
+
+ex_slice_conf_addmod_nvs_rate2 = {
+    "num_of_slices" : 2,
+    "slice_sched_algo" : "NVS",
+    "slices" : [
+        {
+            "index" : 0,
+            "label" : "s1",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_RATE",
+            "slice_algo_params" : {"type": "RATE", "mbps_rsvd" : 60, "mbps_ref" : 200},
+        },
+        {
+            "index" : 2,
+            "label" : "s2",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_RATE",
+            "slice_algo_params" : {"type": "RATE", "mbps_rsvd" : 140, "mbps_ref" : 200},
+        }
+    ]
+}
+
+ex_slice_conf_addmod_nvs_cap2 = {
+    "num_of_slices" : 2,
+    "slice_sched_algo" : "NVS",
+    "slices" : [
+        {
+            "index" : 0,
+            "label" : "s1",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_CAPACITY",
+            "slice_algo_params" : {"type": "CAPACITY", "pct_rsvd" : 0.7},
+        },
+        {
+            "index" : 2,
+            "label" : "s2",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_CAPACITY",
+            "slice_algo_params" : {"type": "CAPACITY", "pct_rsvd" : 0.29},
+        }
+    ]
+}
+
+ex_slice_conf_addmod_nvs_cap3 = {
+    "num_of_slices" : 3,
+    "slice_sched_algo" : "NVS",
+    "slices" : [
+        {
+            "index" : 0,
+            "label" : "s1",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_CAPACITY",
+            "slice_algo_params" : {"type": "CAPACITY", "pct_rsvd" : 0.5},
+        },
+        {
+            "index" : 2,
+            "label" : "s2",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_CAPACITY",
+            "slice_algo_params" : {"type": "CAPACITY", "pct_rsvd" : 0.3},
+        },
+        {
+            "index" : 5,
+            "label" : "s3",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_CAPACITY",
+            "slice_algo_params" : {"type": "CAPACITY", "pct_rsvd" : 0.2},
+        }
+    ]
+}
+
+ex_slice_conf_addmod_nvs = {
+    "num_of_slices" : 3,
+    "slice_sched_algo" : "NVS",
+    "slices" : [
+        {
+            "index" : 0,
+            "label" : "s1",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_CAPACITY",
+            "slice_algo_params" : {"type": "CAPACITY", "pct_rsvd" : 0.5},
+        },
+        {
+            "index" : 2,
+            "label" : "s2",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_RATE",
+            "slice_algo_params" : {"type": "RATE", "mbps_rsvd" : 30, "mbps_ref" : 100},
+        },
+        {
+            "index" : 5,
+            "label" : "s3",
+            "ue_sched_algo" : "PF",
+            "type" : "SLICE_SM_NVS_V0_RATE",
+            "slice_algo_params" : {"type": "RATE", "mbps_rsvd" : 60, "mbps_ref" : 100},
+        }
+    ]
+}
+#
+# ex_slice_conf_addmod_edf = {
+#     "num_of_slices" : 3,
+#     "slice_sched_algo" : "EDF",
+#     "slices" : [
+#         {
+#             "index" : 0,
+#             "label" : "s1",
+#             "ue_sched_algo" : "PF",
+#             "slice_algo_params" : {"deadline" : 10, "guaranteed_prbs" : 20, "max_replenish" : 0},
+#         },
+#         {
+#             "index" : 2,
+#             "label" : "s2",
+#             "ue_sched_algo" : "RR",
+#             "slice_algo_params" : {"deadline" : 20, "guaranteed_prbs" : 20, "max_replenish" : 0},
+#         },
+#         {
+#             "index" : 5,
+#             "label" : "s3",
+#             "ue_sched_algo" : "MT",
+#             "slice_algo_params" : {"deadline" : 40, "guaranteed_prbs" : 10, "max_replenish" : 0},
+#         }
+#     ]
+# }
+
+ex_slice_conf_addmod_reset = {
+    "num_of_slices" : 0
+}
+
+####################
+####  SLICE CONTROL PARAMETER EXAMPLE - DELETE SLICE
+####################
+ex_slice_conf_delete = {
+    "num_of_slices" : 1,
+    "delete_dl_slice_id" : [5]
+}
+
+####################
+####  SLICE CONTROL PARAMETER EXAMPLE - ASSOC UE SLICE
+####################
+ex_slice_conf_assoc_ue = {
+    "num_of_ues" : 1,
+    "ues" : [
+        {
+            "idx" : 0,
+            "assoc_dl_slice_id" : 2
+        }
+    ]
+}
+
+def _get_rnti_by_idx(n_idx, ue_idx):
+    global _global_slice_stats
+    s = _global_slice_stats[n_idx]
+    len_ues = s['UE']["num_of_ues"]
+    rnti = 0
+    for i in range(0, len_ues):
+        if s['UE']["ues"][i]["idx"] == ue_idx:
+            rnti = s['UE']["ues"][i]["rnti"]
+            break
+    if rnti == 0:
+        print("failed: cannot find rnti by the given UE idx")
+    return int(rnti, 16)
+
+def _fill_slice_ctrl_msg(n_idx, ctrl_type, ctrl_msg):
+    msg = ric.slice_ctrl_msg_t()
+    if ctrl_type == "ADDMOD":
+        msg.type = ric.SLICE_CTRL_SM_V0_ADD
+        dl = ric.ul_dl_slice_conf_t()
+        # TODO: UL SLICE CTRL ADD
+        # ul = ric.ul_dl_slice_conf_t()
+
+        # ue_sched_algo can be "RR"(round-robin), "PF"(proportional fair) or "MT"(maximum throughput) and it has to be set in any len_slices
+        ue_sched_algo = "PF"
+        dl.sched_name = ue_sched_algo
+        dl.len_sched_name = len(ue_sched_algo)
+
+        dl.len_slices = ctrl_msg["num_of_slices"]
+        slices = ric.slice_array(ctrl_msg["num_of_slices"])
+        for i in range(0, ctrl_msg["num_of_slices"]):
+            slices[i] = _fill_slice_conf(ctrl_msg["slices"][i], ctrl_msg["slice_sched_algo"])
+
+        dl.slices = slices
+        msg.u.add_mod_slice.dl = dl
+        # TODO: UL SLICE CTRL ADD
+        # msg.u.add_mod_slice.ul = ul;
+    elif ctrl_type == "DEL":
+        msg.type = ric.SLICE_CTRL_SM_V0_DEL
+
+        msg.u.del_slice.len_dl = ctrl_msg["num_of_slices"]
+        del_dl_id = ric.del_dl_array(ctrl_msg["num_of_slices"])
+        for i in range(ctrl_msg["num_of_slices"]):
+            del_dl_id[i] = ctrl_msg["delete_dl_slice_id"][i]
+        # print("DEL DL SLICE: id", del_dl_id)
+
+        # TODO: UL SLCIE CTRL DEL
+        msg.u.del_slice.dl = del_dl_id
+    elif ctrl_type == "ASSOC_UE":
+        msg.type = ric.SLICE_CTRL_SM_V0_UE_SLICE_ASSOC
+
+        msg.u.ue_slice.len_ue_slice = ctrl_msg["num_of_ues"]
+        assoc = ric.ue_slice_assoc_array(ctrl_msg["num_of_ues"])
+        for i in range(ctrl_msg["num_of_ues"]):
+            a = ric.ue_slice_assoc_t()
+            a.rnti = _get_rnti_by_idx(n_idx, ctrl_msg["ues"][i]["idx"])
+            a.dl_id = ctrl_msg["ues"][i]["assoc_dl_slice_id"]
+            # TODO: UL SLICE CTRL ASSOC
+            # a.ul_id = 0
+            assoc[i] = a
+            # print("ASSOC DL SLICE: <rnti:", a.rnti, "(NEED TO FIX)>, id", a.dl_id)
+        msg.u.ue_slice.ues = assoc
+
+    return msg
+
+####################
+#### CONVERT RAN TYPE TO STRING
+####################
+def _get_ngran_name(ran_type):
     if ran_type == 0:
         return "ngran_eNB"
     elif ran_type == 2:
@@ -514,18 +718,152 @@ def get_ngran_name(ran_type):
         return "ngran_gNB_CU"
     elif ran_type == 7:
         return "ngran_gNB_DU"
-    elif ran_type == 9:
-        return "ngran_gNB_CUCP"
-    elif ran_type == 10:
-        return "ngran_gNB_CUUP"
     else:
         return "Unknown"
 
 ####################
-#### PRINT E2 NODES IN TABLE
+#### UPDATE CONNECTED E2 NODES
 ####################
-e2nodes_col_names = ["idx", "nb_id", "mcc", "mnc", "ran_type"]
+def _get_e2_nodes():
+    return ric.conn_e2_nodes()
+
+def _gen_e2nodeid_key(id):
+    plmn = "PLMN_" + str(id.plmn.mcc) + str(id.plmn.mnc)
+    nb_id = "NBID_" + str(id.nb_id.nb_id)
+    ran_type = _get_ngran_name(id.type)
+    return plmn + "-" + nb_id + "-" + ran_type
+
+####################
+####  xAPP INIT
+####################
+def init(path_to_conf):
+    """
+    init(path_to_conf):
+        Init xApp to setup connection with NearRT-RIC.
+    Parameters:
+        path_to_conf: configuration for the xApp to setup E42 connection and database.
+    """
+    # 0. init
+    ric.init(['', '-c', path_to_conf])
+    # 1. get the length of connected e2 nodes
+    global _e2nodes
+    _e2nodes = _get_e2_nodes()
+    e2nodes_len = len(_e2nodes)
+    # while e2nodes_len <= 0:
+    #     temp_e2nodes = _get_e2_nodes()
+    #     if e2nodes != temp_e2nodes:
+    #         print("Update connected E2 nodes")
+    #         e2nodes = temp_e2nodes
+    #         e2nodes_len = len(e2nodes)
+    #     else:
+    #         print("No E2 node connects")
+    #         time.sleep(1)
+    # assert(len(e2nodes) > 0)
+
+    print_e2_nodes()
+
+    # TODO: need to process multi e2 nodes
+    # e2node = e2nodes[0]
+    # for n in e2nodes:
+    #     # 3. subscribe slice sm and mac sm
+    #     n_idx = e2nodes.index(n)
+    #     global _slice_cb
+    #     _slice_cb[n_idx] = SLICECallback()
+    #     global _slice_hndlr
+    #     hndlr = ric.report_slice_sm(n.id, ric.Interval_ms_10, _slice_cb[n_idx])
+    #     _slice_hndlr.append(hndlr)
+    #
+    #     global _mac_cb
+    #     _mac_cb[n_idx] = MACCallback()
+    #     global _mac_hndlr
+    #     hndlr = ric.report_mac_sm(n.id, ric.Interval_ms_10, _mac_cb[n_idx])
+    #     _mac_hndlr.append(hndlr)
+    #     time.sleep(2)
+    #
+    #     # 4. create slices, adding nvs_slices_rate1 by default
+    #     msg = fill_slice_ctrl_msg("ADDMOD", conf_nvs_slices_cap2)
+    #     ric.control_slice_sm(n.id, msg)
+
+####################
+#### subscribe_sm
+####################
+def subscribe_sm(n_idx, enum_sm, tti_enum, action):
+    """
+    subscribe_sm(n_idx, enum_sm, tti_enum, action):
+        Subscribe service model from the specific E2-Node.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+        enum_sm: enum of service model name (support: xapp.ServiceModel.MAC/SLICE/KPM).
+        tti_enum: enum of indication message time interval (support: xapp.SubTTI.ms1/ms2/ms5/ms10/ms100/ms1000).
+        action: list of action definitions used for KPM SM (ex: ex_kpm_actions_gnb)
+    """
+    global _e2nodes
+    # default tti is 10 ms
+    tti = ric.Interval_ms_10
+    if tti_enum.value:
+        tti = tti_enum.value
+    else:
+        print("unknown tti")
+
+    sub_sm_str = enum_sm.value
+    if sub_sm_str == "mac_sm":
+        global _mac_cb
+        global _mac_hndlr
+        _mac_cb = _MACCallback()
+        hndlr = ric.report_mac_sm(_e2nodes[n_idx].id, tti, _mac_cb)
+        key = _gen_e2nodeid_key(_e2nodes[n_idx].id)
+        _mac_hndlr.setdefault(key, []).append(hndlr)
+    elif sub_sm_str == "slice_sm":
+        global _slice_cb
+        global _slice_hndlr
+        _slice_cb = _SLICECallback()
+        hndlr = ric.report_slice_sm(_e2nodes[n_idx].id, tti, _slice_cb)
+        key = _gen_e2nodeid_key(_e2nodes[n_idx].id)
+        _slice_hndlr.setdefault(key, []).append(hndlr)
+    elif sub_sm_str == "kpm_sm":
+        global _kpm_cb
+        global _kpm_hndlr
+        _kpm_cb = _KPMCallback()
+        hndlr = ric.report_kpm_sm(_e2nodes[n_idx].id, tti, action, _kpm_cb)
+        key = _gen_e2nodeid_key(_e2nodes[n_idx].id)
+        _kpm_hndlr.setdefault(key, []).append(hndlr)
+    else:
+        print("unknown sm")
+
+####################
+####  SEND SLICE CONTROL MSG
+####################
+# cmd = "ADDMOD", "DEL", "ASSOC_UE"
+# conf = conf_nvs_slices, conf_delete_slices, conf_assoc_ue_slice
+def send_slice_ctrl(n_idx, type_enum, conf):
+    """
+    send_slice_ctrl(n_idx, type_enum, conf):
+        Send slice control to the specific E2-Node.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+        type_enum: enum of slice action (support: xapp.SliceType.ADDMOD/DEL/ASSOC_UE).
+        conf: slice configuration (ex: xapp.conf_nvs_slices).
+    """
+    st = time.time_ns() / 1000.0
+    cmd = type_enum.value
+    msg = _fill_slice_ctrl_msg(n_idx, cmd, conf)
+    global _e2nodes
+    ric.control_slice_sm(_e2nodes[n_idx].id, msg)
+    print(f"[xApp]: Control Loop Latency: ${(time.time_ns() / 1000.0) - st} us")
+
+####################
+####  print_e2_nodes
+####################
 def print_e2_nodes():
+    """
+    print_e2_nodes():
+        Print connected E2-Nodes' stats in table.
+    """
+    e2nodes_col_names = ["idx", "nb_id", "mcc", "mnc", "ran_type"]
+    global _e2nodes
+    _e2nodes = _get_e2_nodes()
     e2nodes_data = []
     conn = ric.conn_e2_nodes()
     for i in range(0, len(conn)):
@@ -533,10 +871,11 @@ def print_e2_nodes():
         # cu_du_id = -1
         # if conn[i].id.cu_du_id:
         #     cu_du_id = conn[i].id.cu_du_id
-        info = [conn[i].id.nb_id.nb_id,
+        info = [i,
+                conn[i].id.nb_id.nb_id,
                 conn[i].id.plmn.mcc,
                 conn[i].id.plmn.mnc,
-                get_ngran_name(conn[i].id.type)]
+                _get_ngran_name(conn[i].id.type)]
         # print(info)
         e2nodes_data.append(info)
     print(tabulate(e2nodes_data, headers=e2nodes_col_names, tablefmt="grid"))
@@ -548,150 +887,340 @@ def print_e2_nodes():
     #       "ran_type " + get_ngran_name(e2node.id.type) + ',',
     #       "cu_du_id " + str(e2node.id.cu_du_id if e2node.id.cu_du_id else -1))
 
+
 ####################
-#### TUPLE LIST E2 NODES
+####  print_slice_stats
 ####################
-# turn each list of lists into a list of tuples,
-# as tuples are hashable (lists are not) so we can convert the list of tuples into a set of tuples:
-def get_e2_nodes_in_tuple_set():
-    e2nodes_set = set()
-    e2nodesidx_set = set()
-    e2nodes_set_list = []
-    e2nodesidx_set_lst = []
+def print_slice_stats(n_idx):
+    """
+    print_slice_stats(n_idx):
+        Print slice stats from the specific E2-Node in table.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+    """
+    slice_stats_col_names = ["nb_id", "ran_type", "slice_id", "label", "slice_sched_algo", "slice_algo_param1", "slice_algo_param2", "slice_algo_param3", "ue_sched_algo"]
+    ue_stats_col_names = ["idx", "rnti", "assoc_slice_id"]
+    global _global_slice_stats
+    s = _global_slice_stats[n_idx]
+    # RAN
+    slice_stats_table = []
+    nb_id = s["RAN"]["nb_id"]
+    ran_type = s["RAN"]["ran_type"]
+    len_slices = s["RAN"]["dl"]["num_of_slices"]
+    for i in range(0, len_slices):
+        param = []
+        for key in s["RAN"]["dl"]["slices"][i]["slice_algo_params"].keys():
+            param.append(key)
+
+        slice_algo = s["RAN"]["dl"]["slice_sched_algo"]
+        info = []
+        if slice_algo == "STATIC":
+            info = [nb_id,
+                    ran_type,
+                    s["RAN"]["dl"]["slices"][i]["index"],
+                    s["RAN"]["dl"]["slices"][i]["label"],
+                    slice_algo,
+                    str(param[0]) + ":" + str(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[0]]),
+                    str(param[1]) + ":" + str(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[1]]),
+                    "null",
+                    s["RAN"]["dl"]["slices"][i]["ue_sched_algo"]]
+        elif slice_algo == "NVS":
+            nvs_type = s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[0]]
+            if nvs_type == "RATE":
+                mbps_rsvd = float("{:.2f}".format(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[1]]))
+                mbps_ref = float("{:.2f}".format(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[2]]))
+                info = [nb_id,
+                        ran_type,
+                        s["RAN"]["dl"]["slices"][i]["index"],
+                        s["RAN"]["dl"]["slices"][i]["label"],
+                        str(slice_algo) + "-" + str(nvs_type),
+                        str(param[1]) + ":" + str(mbps_rsvd),
+                        str(param[2]) + ":" + str(mbps_ref),
+                        "null",
+                        s["RAN"]["dl"]["slices"][i]["ue_sched_algo"]]
+            elif nvs_type == "CAPACITY":
+                pct_rsvd = float("{:.2f}".format(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[1]]))
+                info = [nb_id,
+                        ran_type,
+                        s["RAN"]["dl"]["slices"][i]["index"],
+                        s["RAN"]["dl"]["slices"][i]["label"],
+                        str(slice_algo) + "-" + str(nvs_type),
+                        str(param[1]) + ":" + str(pct_rsvd),
+                        "null",
+                        "null",
+                        s["RAN"]["dl"]["slices"][i]["ue_sched_algo"]]
+        elif slice_algo == "EDF":
+            info = [nb_id,
+                    ran_type,
+                    s["RAN"]["dl"]["slices"][i]["index"],
+                    s["RAN"]["dl"]["slices"][i]["label"],
+                    str(slice_algo),
+                    str(param[0]) + ":" + str(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[0]]),
+                    str(param[1]) + ":" + str(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[1]]),
+                    str(param[2]) + ":" + str(s["RAN"]["dl"]["slices"][i]["slice_algo_params"][param[2]]),
+                    s["RAN"]["dl"]["slices"][i]["ue_sched_algo"]]
+        if len(info) > 0:
+            slice_stats_table.append(info)
+    if len_slices == 0:
+        info = [nb_id, ran_type]
+        slice_stats_table.append(info)
+
+    # UE
+    ue_slice_stats_table = []
+    len_ues = s['UE']["num_of_ues"]
+    for i in range(0, len_ues):
+        info = [s['UE']["ues"][i]["idx"],
+                s['UE']["ues"][i]["rnti"],
+                s['UE']["ues"][i]["assoc_dl_slice_id"]]
+        if len(info) > 0:
+            ue_slice_stats_table.append(info)
+
+    print(tabulate(slice_stats_table, headers=slice_stats_col_names, tablefmt="grid"))
+    print(tabulate(ue_slice_stats_table, headers=ue_stats_col_names, tablefmt="grid"))
+
+####################
+####  print_slice_stats_json
+####################
+def print_slice_stats_json(n_idx):
+    """
+    print_slice_stats_json(n_idx):
+        Print slice stats from the specific E2-Node in JSON.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+    """
+    global _global_slice_stats
+    s = _global_slice_stats[n_idx]
+    json_formatted_str = json.dumps(s, indent=2)
+    print(json_formatted_str)
+
+####################
+####  print_slice_stats_loop
+####################
+def print_slice_stats_loop(n_idx, n_loop):
+    """
+    print_slice_stats_loop(n_idx, n_loop):
+        Print slice stats from the specific E2-Node in table for N seconds.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+        n_loop: N seconds.
+    """
+    global len_table_str
+    for i in range(0, n_loop):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print_slice_stats(n_idx)
+        time.sleep(1)
+
+####################
+####  print_slice_conf
+####################
+def print_slice_conf(type_enum, conf):
+    """
+    print_slice_conf(type_enum, conf):
+        Print slice configuration in table.
+
+    Parameters:
+        type_enum: enum of slice action (support: xapp.SliceType.ADDMOD/DEL/ASSOC_UE).
+        conf: slice configuration (ex: xapp.ex_slice_conf_addmod_nvs).
+    """
+    mod_slice_conf_col_names = ["slice_id", "label", "slice_sched_algo", "slice_algo_param1", "slice_algo_param2", "slice_algo_param3", "ue_sched_algo"]
+    del_slice_conf_col_names = ["slice_id"]
+    assoc_ue_conf_col_names = ["idx", "assoc_slice_id"]
+    type = type_enum.value
+    if type == "ADDMOD":
+        # RAN
+        mod_slice_conf_table = []
+        len_slices = conf["num_of_slices"]
+        for i in range(0, len_slices):
+            param = []
+            for key in conf["slices"][i]["slice_algo_params"].keys():
+                param.append(key)
+
+            slice_algo = conf["slice_sched_algo"]
+            info = []
+            if slice_algo == "STATIC":
+                info = [conf["slices"][i]["index"],
+                        conf["slices"][i]["label"],
+                        slice_algo,
+                        str(param[0]) + ":" + str(conf["slices"][i]["slice_algo_params"][param[0]]),
+                        str(param[1]) + ":" + str(conf["slices"][i]["slice_algo_params"][param[1]]),
+                        "null",
+                        conf["slices"][i]["ue_sched_algo"]]
+            elif slice_algo == "NVS":
+                nvs_type = conf["slices"][i]["slice_algo_params"][param[0]]
+                if nvs_type == "RATE":
+                    mbps_rsvd = float("{:.2f}".format(conf["slices"][i]["slice_algo_params"][param[1]]))
+                    mbps_ref = float("{:.2f}".format(conf["slices"][i]["slice_algo_params"][param[2]]))
+                    info = [conf["slices"][i]["index"],
+                            conf["slices"][i]["label"],
+                            str(slice_algo) + "-" + str(nvs_type),
+                            str(param[1]) + ":" + str(mbps_rsvd),
+                            str(param[2]) + ":" + str(mbps_ref),
+                            "null",
+                            conf["slices"][i]["ue_sched_algo"]]
+                elif nvs_type == "CAPACITY":
+                    pct_rsvd = float("{:.2f}".format(conf["slices"][i]["slice_algo_params"][param[1]]))
+                    info = [conf["slices"][i]["index"],
+                            conf["slices"][i]["label"],
+                            str(slice_algo) + "-" + str(nvs_type),
+                            str(param[1]) + ":" + str(pct_rsvd),
+                            "null",
+                            "null",
+                            conf["slices"][i]["ue_sched_algo"]]
+            elif slice_algo == "EDF":
+                info = [conf["slices"][i]["index"],
+                        conf["slices"][i]["label"],
+                        str(slice_algo),
+                        str(param[0]) + ":" + str(conf["slices"][i]["slice_algo_params"][param[0]]),
+                        str(param[1]) + ":" + str(conf["slices"][i]["slice_algo_params"][param[1]]),
+                        str(param[2]) + ":" + str(conf["slices"][i]["slice_algo_params"][param[2]]),
+                        conf["slices"][i]["ue_sched_algo"]]
+            if len(info) > 0:
+                mod_slice_conf_table.append(info)
+        print(tabulate(mod_slice_conf_table, headers=mod_slice_conf_col_names))
+    elif type == "DEL":
+        del_slice_conf_table = []
+        len_slices = conf["num_of_slices"]
+        for i in range(0, len_slices):
+            info = [conf["delete_dl_slice_id"][i]]
+            if len(info) > 0:
+                del_slice_conf_table.append(info)
+        print(tabulate(del_slice_conf_table, headers=del_slice_conf_col_names))
+    elif type == "ASSOC_UE":
+        # UE
+        assoc_ue_slice_conf_table = []
+        len_ues = conf["num_of_ues"]
+        for i in range(0, len_ues):
+            info = [conf["ues"][i]["idx"],
+                    conf["ues"][i]["assoc_dl_slice_id"]]
+            if len(info) > 0:
+                assoc_ue_slice_conf_table.append(info)
+        print(tabulate(assoc_ue_slice_conf_table, headers=assoc_ue_conf_col_names))
+
+####################
+####  print_slice_conf_json
+####################
+def print_slice_conf_json(conf):
+    """
+    print_slice_conf_json(conf):
+        Print the slice configuration in JSON.
+
+    Parameters:
+        conf: slice configuration (ex: xapp.ex_slice_conf_addmod_nvs).
+    """
+    json_formatted_str = json.dumps(conf, indent=2)
+    print(json_formatted_str)
+
+####################
+####  print_kpm_stats
+####################
+# len_table_str = 0
+def print_kpm_stats(n_idx):
+    """
+    print_kpm_stats(n_idx):
+        Print KPM stats (UE_ID_E2SM) for all the UEs in table.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+    """
+    global _global_kpm_stats
+    kpm_stats = _global_kpm_stats[n_idx]
+    col_data = []
+    col_name = ["Format", "Latency"]
+    for ue in kpm_stats["UEs"]:
+        tmp = [kpm_stats["Format"], kpm_stats["Latency"]]
+        # UEs
+        for ue_id_key in ue["UE_ID"].keys():
+            if kpm_stats["UEs"].index(ue) == 0:
+                col_name.append(ue_id_key)
+            tmp.append(ue["UE_ID"][ue_id_key])
+        col_data.append(tmp)
+    print(tabulate(col_data, headers=col_name, tablefmt="grid"))
+
+####################
+####  print_kpm_stats_ue
+####################
+def print_kpm_stats_ue(n_idx, ue_idx):
+    """
+    print_kpm_stats_ue(n_idx, ue_idx):
+        Print KPM stats (Measurement Records) for the specific UE in table.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+        ue_idx: index of the UE, you can get the index by calling print_kpm_stats().
+    """
+    global _global_kpm_stats
+    kpm_stats = _global_kpm_stats[n_idx]
+    # RAN
+    col_data = []
+    col_name = ["Format", "Latency", "idx"]
+    for data in kpm_stats["UEs"][ue_idx]["Measurements"]:
+        tmp = [kpm_stats["Format"], kpm_stats["Latency"], kpm_stats["UEs"][ue_idx]["UE_ID"]["idx"]]
+
+        for meas_key in data.keys():
+            if meas_key == "data":
+                for name_id_value in data["data"]:
+                    col_name.append(name_id_value["name/id"])
+                    tmp.append(name_id_value["value"])
+        col_data.append(tmp)
+    print(tabulate(col_data, headers=col_name, tablefmt="grid"))
+
+#     global len_table_str
+#     print_table = tabulate(kpm_stats_table, headers=kpm_ind_col_names, tablefmt="grid")
+#     table_str = str(print_table).ljust(len(print_table))
+#     len_table_str = len(print_table)
+#     print(table_str, end="\r")
+#     print("\n")
+
+####################
+####  print_kpm_stats_json
+####################
+def print_kpm_stats_json(n_idx):
+    """
+    print_kpm_stats_json(n_idx):
+        Print KPM stats from the specific E2-Node in JSON.
+
+    Parameters:
+        n_idx: index of the connected E2-Node, you can get the index by calling print_e2_nodes().
+    """
+    global _global_kpm_stats
+    k = _global_kpm_stats[n_idx]
+    json_formatted_str = json.dumps(k, indent=2)
+    print(json_formatted_str)
+
+# def print_kpm_stats_loop(n_idx, n_loop):
+#     global len_table_str
+#     for i in range(0, n_loop):
+#         os.system('cls' if os.name == 'nt' else 'clear')
+#         print_kpm_stats(n_idx)
+#         time.sleep(1)
+
+####################
+####  END
+####################
+def end():
+    """
+    end():
+        Stop xApp.
+    """
+    global _slice_hndlr
+    global _mac_hndlr
+    global _kpm_hndlr
     conn = ric.conn_e2_nodes()
-    for i in range(0, len(conn)):
-        # TODO: need to fix cu_du_id in swig
-        # cu_du_id = -1
-        # if conn[i].id.cu_du_id:
-        #     cu_du_id = conn[i].id.cu_du_id
-        plmn = "PLMN_" + str(conn[i].id.plmn.mcc) + str(conn[i].id.plmn.mnc)
-        nbid = "NBID_" + str(conn[i].id.nb_id.nb_id)
-        info = {nbid,
-                plmn,
-                get_ngran_name(conn[i].id.type)}
-        info_idx = {i,
-                    nbid,
-                    plmn,
-                    get_ngran_name(conn[i].id.type)}
-        # print(info)
-        e2nodes_set_list.append(info)
-        e2nodesidx_set_lst.append(info_idx)
-    e2nodes_tuple_of_sets = tuple(e2nodes_set_list)
-    e2nodes_idx_tuple_of_sets = tuple(e2nodesidx_set_lst)
-    return e2nodes_tuple_of_sets, e2nodes_idx_tuple_of_sets
+    for n in conn:
+        key = _gen_e2nodeid_key(n.id)
+        if key in _mac_hndlr:
+            for i in range(0, len(_mac_hndlr[key])):
+                ric.rm_report_mac_sm(_mac_hndlr[key][i])
+        if key in _slice_hndlr:
+            for i in range(0, len(_slice_hndlr[key])):
+                ric.rm_report_slice_sm(_slice_hndlr[key][i])
+        if key in _kpm_hndlr:
+            for i in range(0, len(_kpm_hndlr[key])):
+                ric.rm_report_kpm_sm(_kpm_hndlr[key][i])
 
-
-def clean_hndlr(id):
-    key = gen_id_key(conn[idx].id)
-    global mac_hndlr
-    if key in mac_hndlr:
-        del mac_hndlr[key]
-    global rlc_hndlr
-    if key in rlc_hndlr:
-        del rlc_hndlr[key]
-    global pdcp_hndlr
-    if key in pdcp_hndlr:
-        del pdcp_hndlr[key]
-    global gtp_hndlr
-    if key in gtp_hndlr:
-        del gtp_hndlr[key]        
-    global kpm_hndlr
-    if key in kpm_hndlr:
-        del kpm_hndlr[key]
-
-####################
-####  GENERAL
-####################
-
-ric.init(sys.argv)
-start_http_server(8000)
-cust_sm = ric.get_cust_sm_conf()
-# for i in range(0, len(cust_sm)):
-#     print(cust_sm[i].name, cust_sm[i].time)
-oran_sm = ric.get_oran_sm_conf()
-
-signal.signal(signal.SIGINT, sig_handler)
-
-e2nodes = 0
-e2nodes_set, e2nodesidx_set = get_e2_nodes_in_tuple_set()
-# print("e2nodes")
-# print(e2nodes_set)
-while not e2nodes_set:
-    print("No E2 node connects")
-    time.sleep(1)
-
-    temp_e2nodes_set, temp_e2nodes_idx_set = get_e2_nodes_in_tuple_set()
-
-    if temp_e2nodes_set: # new - old
-        # print("e2nodes_set ", e2nodes_set)
-        # print("temp_e2nodes_set ", temp_e2nodes_set)
-        print("Update connected E2 nodes")
-        e2nodes_set = temp_e2nodes_set
-        e2nodes_idx_set = temp_e2nodes_idx_set
-
-assert(e2nodes_set)
-print_e2_nodes()
-
-conn = ric.conn_e2_nodes()
-mac_hndlr = {}
-rlc_hndlr = {}
-pdcp_hndlr = {}
-gtp_hndlr = {}
-kpm_hndlr = {}
-for i in range(0, len(conn)):
-    send_subscription_req(conn[i], cust_sm, oran_sm)
-    time.sleep(1)
-
-while True:
-    temp_e2nodes_set, temp_e2nodes_idx_set = get_e2_nodes_in_tuple_set()
-
-    if not temp_e2nodes_set:
-        print("No E2 node connects")
-        e2nodes_set = set()
-
-    # print("e2nodes_set ", e2nodes_set)
-    # print("temp_e2nodes_set ", temp_e2nodes_set)
-
-    # leave set
-    leave_sets = set()
-    for leave_set in e2nodes_set:
-        if leave_set not in temp_e2nodes_set:
-            leave_sets.add(tuple(leave_set))
-
-    # new coming set
-    new_sets = set()
-    for new_set in temp_e2nodes_set:
-        if new_set not in e2nodes_set:
-            new_sets.add(tuple(new_set))
-
-    if new_sets or leave_sets:
-        if leave_sets:
-            print("Left E2-Nodes: ", leave_sets)
-
-        print("Update connected E2 nodes")
-        e2nodes_set = temp_e2nodes_set
-        e2nodes_idx_set = temp_e2nodes_idx_set
-        e2nodes_len = len(e2nodes_set)
-        print_e2_nodes()
-
-        if new_sets:
-            print("New E2-Nodes: ", new_sets)
-            conn = ric.conn_e2_nodes()
-            for ns in new_sets:
-                for idx_set in e2nodes_idx_set:
-                    if set(ns).issubset(set(idx_set)):
-                        # print(f"ns {ns}, idx_set{idx_set}")
-                        idx = -1
-                        for value in idx_set:
-                            if isinstance(value, int):
-                                idx = value
-                                break
-                        if idx >= 0:
-                            clean_hndlr(conn[idx].id)
-                            send_subscription_req(conn[idx], cust_sm, oran_sm)
-                        else:
-                            print(f"Error: cannot find E2 node idx from the set")
-                        break
-
-
-    time.sleep(1)
+    while ric.try_stop == 0:
+        time.sleep(1)
+    print('Test finished')
